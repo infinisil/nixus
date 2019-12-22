@@ -1,0 +1,94 @@
+#! @shell@
+
+set -u
+
+# TODO: Have some good status reporting over a bidirectional socket perhaps?
+# Want to be able to know/do
+# - Did system X succeed? What happened during the activation?
+# - What's the status, which system is activated, which is being tested? Is it waiting for success confirmation?
+# - Confirm success
+# - Trigger a system activation
+# - Trigger a debugging thing (before reboot perhaps)
+
+# TODO: Reboot automatically if kernel update?
+# TODO: Take some things from auto-upgrade.nix
+
+read -r newsystem
+
+newsystem=$(realpath "$newsystem")
+
+if ! [ -x "$newsystem/bin/switch-to-configuration" ]; then
+	echo "Input $newsystem doesn't appear to be a NixOS system"
+	exit 1
+fi
+# TODO: Check if actually system derivation
+
+oldsystem=$(realpath /run/current-system)
+
+# Maybe this is wanted sometimes. Enabling this also is a bit annoying because no confirmation would be needed
+#if [ "$oldsystem" == "$newsystem" ]; then
+#	echo "The system $newsystem is already activated"
+#	exit 0
+#fi
+
+# TODO: Maybe have a list of known-good, know-bad configs. The good ones won't need confirmation anymore (unless requested), and the bad ones won't be tried from the start (unless forced)
+
+successFifo="$RUNTIME_DIRECTORY/success"
+waitSuccess() {
+	read -t @successTimeout@ -r <>"$successFifo" success
+	readExit=$?
+	return $readExit
+}
+echo HI
+
+switch() {
+	local system=$1
+	local action=$2
+	timeout @switchTimeout@ "$system/bin/switch-to-configuration" "$action"
+	code=$?
+	if [ $code -eq 124 ]; then
+		echo "Activation of $system timed out"
+	elif [ $code -ne 0 ]; then
+		echo "Activation of $system failed"
+	fi
+	return $code
+}
+
+fail() {
+	# Ignore errors from this process, because what can we do
+	switch "$oldsystem" switch
+
+	mkfifo "$successFifo"
+	if ! waitSuccess; then
+		echo "Couldn't roll back, rebooting.."
+		# TODO: Do we really want to reboot in this case? Maybe allow for debugging
+		# first if possible.
+		if ! echo reboot; then
+			echo "Couldn't reboot!"
+		fi
+	fi
+	exit 1
+}
+
+
+if switch "$newsystem" test; then
+	echo "Activated new system successfully, waiting for success confirmation.."
+	mkfifo "$successFifo"
+	if waitSuccess; then
+	  rm "$successFifo"
+		echo "Success confirmation received, activating system"
+		if switch "$newsystem" boot; then
+			@nix@/bin/nix-env -p /nix/var/nix/profiles/system --set "$newsystem"
+		else
+		  echo "Failed to boot switch, rolling back.."
+		  fail
+		fi
+	else
+	  rm "$successFifo"
+		echo "Success confirmation not received in time, rolling back.."
+		fail
+	fi
+else
+	echo "System activation failed, rolling back.."
+	fail
+fi

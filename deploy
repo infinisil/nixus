@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -e
+# TODO: Make interruptible
+# TODO: Use correct ssh port? (can change over a deploy)
+HOST=root@138.68.83.114
+
+# TODO: What about GC?
+
+# TODO: Generate hardware-config every time?
+
+echo "Building system.."
+SYSTEM=$(nix-build --no-out-link -A system)
+echo "Copying closure to host.."
+nix-copy-closure -s --to ssh://$HOST $SYSTEM
+
+echo "Triggering system switcher.."
+ssh -n $HOST "echo $SYSTEM > /run/system-switcher-system"
+echo "Trying to confirm success.."
+# While the system switcher service could still be running
+while ! timeout 5 ssh $HOST -o ControlPath=none -o BatchMode=yes "[ \$(systemctl show -p ActiveState --value system-switcher) != activating ]"; do
+	# Try to confirm success
+	echo "Timeout out connecting or still active"
+	timeout 5 ssh $HOST -o ControlPath=none -o BatchMode=yes "echo success > /run/system-tester/success" || true
+done
+
+RESULT=$(ssh $HOST -o ControlPath=none -o BatchMode=yes realpath /run/current-system)
+
+if [ "$SYSTEM" == "$RESULT" ]; then
+	echo "Successfully activated new system!"
+else
+	echo "Failed to activate new system! Rolled back to previous one"
+fi
