@@ -1,94 +1,159 @@
 #! @shell@
 
-set -u
-
-# TODO: Have some good status reporting over a bidirectional socket perhaps?
-# Want to be able to know/do
-# - Did system X succeed? What happened during the activation?
-# - What's the status, which system is activated, which is being tested? Is it waiting for success confirmation?
-# - Confirm success
-# - Trigger a system activation
-# - Trigger a debugging thing (before reboot perhaps)
 
 # TODO: Reboot automatically if kernel update?
 # TODO: Take some things from auto-upgrade.nix
 
-read -r newsystem
+# Have a remote command, with usage:
+# switch start <system> -> <id>
+# switch active <id> -> success | failure | unknown, exit code 0 when done, 1
+#   when not done, reports that we can connect to the host
+# switch run -> does the actual switch, should be run asynchronously via systemd
 
-newsystem=$(realpath "$newsystem")
+# We store state like this:
+# /var/lib/system-switcher
+#   /next: <n>
+#   /current -> system-<n> (optional)
+#   /system-<n>
+#     /system -> /nix/store/xxx
+#     /status: success | failure | unknown
+#     /confirm: (socket, optional)
+#     /active: 0 | 1
 
-if ! [ -x "$newsystem/bin/switch-to-configuration" ]; then
-	echo "Input $newsystem doesn't appear to be a NixOS system"
-	exit 1
-fi
-# TODO: Check if actually system derivation
+set -u
 
-oldsystem=$(realpath /run/current-system)
+mkdir -p /var/lib/system-switcher
+chmod 770 /var/lib/system-switcher
+cd /var/lib/system-switcher
 
-# Maybe this is wanted sometimes. Enabling this also is a bit annoying because no confirmation would be needed
-#if [ "$oldsystem" == "$newsystem" ]; then
-#	echo "The system $newsystem is already activated"
-#	exit 0
-#fi
+switch-start() {
+  local system=$1
+	if ! [ -x "$system/bin/switch-to-configuration" ]; then
+		echo "$system doesn't appear to be a NixOS system" >&2
+		exit 1
+	fi
 
-# TODO: Maybe have a list of known-good, know-bad configs. The good ones won't need confirmation anymore (unless requested), and the bad ones won't be tried from the start (unless forced)
+  local id
+	if [ -f next ]; then
+		id=$(cat next)
+	else
+		id=0
+	fi
 
-successFifo="$RUNTIME_DIRECTORY/success"
-waitSuccess() {
-	read -t @successTimeout@ -r <>"$successFifo" success
-	readExit=$?
-	return $readExit
+  local current="system-$id"
+	if ! ln -sT "system-$id" current; then
+		echo "Switch $(readlink current) is already in progress" >&2
+		exit 1
+	fi
+
+	echo $(( id + 1 )) > next
+	mkdir "$current"
+	ln -sT "$system" current/system
+	echo unknown > current/status
+	echo 1 > current/active
+	systemctl start system-switcher
+	
+	echo "$id"
 }
-echo HI
+
+switch-active() {
+	local id=$1
+	cat "system-$id/status"
+	[ ! -p "system-$id/confirm" ]
+	local active=$(cat "system-$id/active")
+	# Could also wait for updates after the ping
+	if [ -p "system-$id/confirm" ]; then
+		echo PING > "system-$id/confirm"
+	fi
+	exit "$active"
+}
+
+
+waitConfirm() {
+	mkfifo current/confirm
+	echo "Waiting for confirmation.." >&2
+	read -t @successTimeout@ -r <>current/confirm
+	confirmed=$?
+	rm current/confirm
+	return $confirmed
+}
 
 switch() {
 	local system=$1
 	local action=$2
 	timeout @switchTimeout@ "$system/bin/switch-to-configuration" "$action"
-	code=$?
+	local code=$?
 	if [ $code -eq 124 ]; then
-		echo "Activation of $system timed out"
+		echo "Activation of $system timed out" >&2
 	elif [ $code -ne 0 ]; then
-		echo "Activation of $system failed"
+		echo "Activation of $system failed" >&2
 	fi
 	return $code
 }
 
 fail() {
-	# Ignore errors from this process, because what can we do
-	switch "$oldsystem" switch
+	echo failure > current/status
+	echo "Rolling back.." >&2
+	switch "$1" switch
 
-	mkfifo "$successFifo"
-	if ! waitSuccess; then
-		echo "Couldn't roll back, rebooting.."
-		# TODO: Do we really want to reboot in this case? Maybe allow for debugging
-		# first if possible.
-		if ! echo reboot; then
-			echo "Couldn't reboot!"
-		fi
+	waitConfirm
+	code=$?
+
+	echo 0 > current/active
+	rm current
+
+	if [ "$code" -ne 0 ]; then
+		reboot
 	fi
+
 	exit 1
 }
 
+switch-run() {
+	if [ ! -d current ]; then
+		echo "No system to activate" >&2
+		exit 1
+	fi
 
-if switch "$newsystem" test; then
-	echo "Activated new system successfully, waiting for success confirmation.."
-	mkfifo "$successFifo"
-	if waitSuccess; then
-	  rm "$successFifo"
-		echo "Success confirmation received, activating system"
-		if switch "$newsystem" boot; then
-			@nix@/bin/nix-env -p /nix/var/nix/profiles/system --set "$newsystem"
+	local newsystem=$(realpath current/system)
+  local oldsystem=$(realpath /run/current-system)
+
+	if switch "$newsystem" test; then
+		echo "Activated new system successfully"
+		if waitConfirm; then
+			echo "Success confirmation received, activating system" >&2
+			if switch "$newsystem" boot; then
+				@nix@/bin/nix-env -p /nix/var/nix/profiles/system --set "$newsystem"
+				echo success > current/status
+				echo 0 > current/active
+				rm current
+			else
+				echo "Failed to boot switch" >&2
+				fail "$oldsystem"
+			fi
 		else
-		  echo "Failed to boot switch, rolling back.."
-		  fail
+			echo "Success confirmation not received in time" >&2
+			fail "$oldsystem"
 		fi
 	else
-	  rm "$successFifo"
-		echo "Success confirmation not received in time, rolling back.."
-		fail
+		echo "System activation failed" >&2
+		fail "$oldsystem"
 	fi
-else
-	echo "System activation failed, rolling back.."
-	fail
-fi
+
+}
+
+case "$1" in
+	"start")
+		switch-start "$2"
+		;;
+	"active")
+		switch-active "$2"
+		;;
+	"run")
+		switch-run
+		;;
+	*)
+		echo "No such command $1" >&2
+		;;
+esac
+

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -e
-# TODO: Make interruptible
+# TODO: Make interruptible/atomic
 # TODO: Use correct ssh port? (can change over a deploy)
 HOST=root@138.68.83.114
+
+SSH_OPTS="-o BatchMode=yes"
 
 # TODO: What about GC?
 
@@ -10,23 +12,33 @@ HOST=root@138.68.83.114
 
 echo "Building system.."
 SYSTEM=$(nix-build --no-out-link -A system)
+
 echo "Copying closure to host.."
 nix-copy-closure -s --to ssh://$HOST $SYSTEM
 
 echo "Triggering system switcher.."
-ssh -n $HOST "echo $SYSTEM > /run/system-switcher-system"
+id=$(ssh $SSH_OPTS $HOST switch start $SYSTEM)
+
+
 echo "Trying to confirm success.."
-# While the system switcher service could still be running
-while ! timeout 5 ssh $HOST -o ControlPath=none -o BatchMode=yes "[ \$(systemctl show -p ActiveState --value system-switcher) != activating ]"; do
-	# Try to confirm success
-	echo "Timeout out connecting or still active"
-	timeout 5 ssh $HOST -o ControlPath=none -o BatchMode=yes "echo success > /run/system-tester/success" || true
+set +e
+prevstatus="unknown"
+prevactive=0
+active=1
+while [ "$active" != 0 ]; do
+	status=$(timeout 5 ssh -o ControlPath=none $SSH_OPTS $HOST switch active "$id")
+	active=$?
+	sleep 1
 done
 
-RESULT=$(ssh $HOST -o ControlPath=none -o BatchMode=yes realpath /run/current-system)
-
-if [ "$SYSTEM" == "$RESULT" ]; then
-	echo "Successfully activated new system!"
-else
-	echo "Failed to activate new system! Rolled back to previous one"
-fi
+case "$status" in
+	"success")
+		echo "Successfully activated new system!"
+		;;
+	"failure")
+		echo "Failed to activate new system! Rolled back to previous one"
+		;;
+	*)
+	  echo "This shouldn't occur!"
+		;;
+esac
