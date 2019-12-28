@@ -6,6 +6,7 @@
 
   boot.loader.timeout = 40;
   boot.loader.grub.device = "/dev/vda";
+  boot.kernelPackages = pkgs.linuxPackages_latest;
 
   i18n.consoleUseXkbConfig = true;
   services.xserver.xkbVariant = "dvp";

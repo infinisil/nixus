@@ -2,22 +2,21 @@
 set -e
 # TODO: Make interruptible/atomic
 # TODO: Use correct ssh port? (can change over a deploy)
-HOST=root@138.68.83.114
+HOST=@host@
+SYSTEM=@systembuild@
+SWITCH=@switch@
 
 SSH_OPTS="-o BatchMode=yes"
 
 # TODO: What about GC?
-
 # TODO: Generate hardware-config every time?
 
-echo "Building system.."
-SYSTEM=$(nix-build --no-out-link -A system)
 
 echo "Copying closure to host.."
-nix-copy-closure -s --to ssh://$HOST $SYSTEM
+nix-copy-closure -s --to ssh://$HOST $SYSTEM $SWITCH
 
 echo "Triggering system switcher.."
-id=$(ssh $SSH_OPTS $HOST switch start $SYSTEM)
+id=$(ssh $SSH_OPTS $HOST "$SWITCH/bin/switch" start $SYSTEM)
 
 
 echo "Trying to confirm success.."
@@ -26,7 +25,7 @@ prevstatus="unknown"
 prevactive=0
 active=1
 while [ "$active" != 0 ]; do
-	status=$(timeout 5 ssh -o ControlPath=none $SSH_OPTS $HOST switch active "$id")
+	status=$(timeout 5 ssh -o ControlPath=none $SSH_OPTS $HOST "$SWITCH/bin/switch" active "$id")
 	active=$?
 	sleep 1
 done

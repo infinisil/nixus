@@ -19,6 +19,7 @@
 #     /status: success | failure | unknown
 #     /confirm: (socket, optional)
 #     /active: 0 | 1
+#     /log: File where logs are piped to
 
 set -u
 
@@ -51,8 +52,9 @@ switch-start() {
 	ln -sT "$system" current/system
 	echo unknown > current/status
 	echo 1 > current/active
-	systemctl start system-switcher
-	
+
+	nohup "$0" run 2>"$current/log" >/dev/null &
+
 	echo "$id"
 }
 
@@ -123,7 +125,7 @@ switch-run() {
 		if waitConfirm; then
 			echo "Success confirmation received, activating system" >&2
 			if switch "$newsystem" boot; then
-				@nix@/bin/nix-env -p /nix/var/nix/profiles/system --set "$newsystem"
+				nix-env -p /nix/var/nix/profiles/system --set "$newsystem"
 				echo success > current/status
 				echo 0 > current/active
 				rm current
