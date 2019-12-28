@@ -3,6 +3,10 @@ let
   inherit (pkgs) lib;
   inherit (lib) types;
 
+  extraConfig = { lib, ... }: {
+    systemd.services.sshd.stopIfChanged = lib.mkForce true;
+  };
+
   switch = pkgs.runCommandNoCC "switch" {
     # TODO: Make NixOS module for this
     switchTimeout = 120;
@@ -40,7 +44,12 @@ let
           inherit switch;
           # TODO: Pass lib as specialArgs
           systembuild = (import (config.nixpkgs + "/nixos") {
-            inherit (config) configuration;
+            configuration = {
+              imports = [
+                config.configuration
+                extraConfig
+              ];
+            };
           }).config.system.build.toplevel;
         } ''
           mkdir -p $out/bin

@@ -19,16 +19,20 @@ echo "Triggering system switcher.."
 id=$(ssh $SSH_OPTS $HOST "$SWITCH/bin/switch" start $SYSTEM)
 
 
-echo "Trying to confirm success.."
+echo -n "Trying to confirm success"
 set +e
 prevstatus="unknown"
 prevactive=0
 active=1
 while [ "$active" != 0 ]; do
+	# TODO: Because of the imperative network-setup script, when e.g. the defaultGateway is removed, the previous entry is still persisted on a rebuild switch, even though with a reboot it wouldn't. Maybe use the more modern and declarative networkd to get around this
 	status=$(timeout 5 ssh -o ControlPath=none $SSH_OPTS $HOST "$SWITCH/bin/switch" active "$id")
 	active=$?
+	echo -n .
 	sleep 1
 done
+
+echo ""
 
 case "$status" in
 	"success")
@@ -36,6 +40,8 @@ case "$status" in
 		;;
 	"failure")
 		echo "Failed to activate new system! Rolled back to previous one"
+		# TODO: Try to show what failed
+		#ssh $SSH_OPTS $HOST cat /var/lib/system-switcher/system-$id/log
 		;;
 	*)
 	  echo "This shouldn't occur!"

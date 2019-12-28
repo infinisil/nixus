@@ -1,7 +1,6 @@
 { lib, pkgs, ... }: {
   imports = [
     ./hardware-configuration.nix
-    ./auto-rollback.nix
   ];
 
   boot.loader.timeout = 40;
@@ -12,6 +11,7 @@
   services.xserver.xkbVariant = "dvp";
 
   networking = {
+    useNetworkd = true;
     useDHCP = false;
     nameservers = [ "1.1.1.1" "1.0.0.1" ];
     defaultGateway = "138.68.80.1";
@@ -26,8 +26,6 @@
 
   services.openssh.enable = true;
   services.openssh.permitRootLogin = "yes";
-  # Restart sshd after activation instead?
-  systemd.services.sshd.stopIfChanged = lib.mkForce true;
 
   users.users.root.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHjY4cuUk4IWgBgnEJSULkIHO+njUmIFP+WSWy7IobBs infinisil@vario"
