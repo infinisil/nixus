@@ -12,12 +12,12 @@
     nameservers = [ "1.1.1.1" "1.0.0.1" ];
     defaultGateway = "138.68.80.1";
     usePredictableInterfaceNames = false;
-    #interfaces.eth0 = {
-    #  ipv4.addresses = [{
-    #    address = "138.68.83.114";
-    #    prefixLength = 20;
-    #  }];
-    #};
+    interfaces.eth0 = {
+      ipv4.addresses = [{
+        address = "138.68.83.114";
+        prefixLength = 20;
+      }];
+    };
   };
 
   services.openssh.enable = true;
