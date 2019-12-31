@@ -127,7 +127,7 @@ in {
 
     switchTimeout = lib.mkOption {
       type = types.ints.unsigned;
-      default = 10;
+      default = 60;
       description = ''
         How many seconds remote hosts should wait for the system activation
         command to finish before considering it failed.
@@ -136,7 +136,7 @@ in {
 
     successTimeout = lib.mkOption {
       type = types.ints.unsigned;
-      default = 10;
+      default = 20;
       description = ''
         How many seconds remote hosts should wait for the success
         confirmation before rolling back.
