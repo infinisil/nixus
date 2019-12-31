@@ -16,6 +16,8 @@ let
     systemd.services.sshd.stopIfChanged = lib.mkForce true;
   };
 
+  machines = lib.mapAttrs (name: value: value.systemConfig) config.machines;
+
   machineOptions = { name, config, ... }: {
 
     options = {
@@ -63,23 +65,26 @@ let
           The path to the script to deploy all hosts.
         '';
       };
-    };
 
-    config = let
-      system = (import (config.nixpkgs + "/nixos") {
-        configuration = {
-          imports = [
+      systemConfig = lib.mkOption {
+        default = (import (config.nixpkgs + "/nixos/lib/eval-config.nix") {
+          modules = [
             config.configuration
             extraConfig
           ];
-        };
-      }).config.system.build.toplevel;
-    in {
+          specialArgs.machines = machines;
+        }).config;
+        readOnly = true;
+        internal = true;
+      };
+    };
+
+    config = {
       deployScript = pkgs.runCommandNoCC "deploy-${name}" {
         hostname = name;
         inherit (config) host;
         inherit switch;
-        systembuild = system;
+        systembuild = config.systemConfig.system.build.toplevel;
       } ''
         mkdir -p $out/bin
         substituteAll ${scripts/deploy} $out/bin/deploy
