@@ -16,7 +16,15 @@ let
     systemd.services.sshd.stopIfChanged = lib.mkForce true;
   };
 
-  machines = lib.mapAttrs (name: value: value.systemConfig) config.machines;
+  pkgsModule = nixpkgs: { lib, config, ... }: {
+    nixpkgs.system = lib.mkDefault builtins.currentSystem;
+    # Not using nixpkgs.pkgs because that would apply the overlays again
+    _module.args.pkgs = lib.mkDefault (import nixpkgs {
+      inherit (config.nixpkgs) config overlays localSystem crossSystem;
+    });
+  };
+
+  topconfig = config;
 
   machineOptions = { name, config, ... }: {
 
@@ -43,9 +51,20 @@ let
         '';
       };
 
+
       configuration = lib.mkOption {
-        # TODO: Specify for merging and inter-machine abstractions and allowing access to configuration values
-        type = lib.types.unspecified;
+        type =
+          let baseModules = import (config.nixpkgs + "/nixos/modules/module-list.nix");
+          in types.submoduleWith {
+            specialArgs = {
+              lib = import (config.nixpkgs + "/lib");
+              # TODO: Move these to not special args
+              machines = lib.mapAttrs (name: value: value.configuration) topconfig.machines;
+              inherit name baseModules;
+            };
+            modules = baseModules ++ [ (pkgsModule config.nixpkgs) ];
+          };
+        default = {};
         example = lib.literalExample ''
           {
             imports = [ ./hardware-configuration.nix ];
@@ -66,17 +85,6 @@ let
         '';
       };
 
-      systemConfig = lib.mkOption {
-        default = (import (config.nixpkgs + "/nixos/lib/eval-config.nix") {
-          modules = [
-            config.configuration
-            extraConfig
-          ];
-          specialArgs.machines = machines;
-        }).config;
-        readOnly = true;
-        internal = true;
-      };
     };
 
     config = {
@@ -84,7 +92,7 @@ let
         hostname = name;
         inherit (config) host;
         inherit switch;
-        systembuild = config.systemConfig.system.build.toplevel;
+        systembuild = config.configuration.system.build.toplevel;
       } ''
         mkdir -p $out/bin
         substituteAll ${scripts/deploy} $out/bin/deploy
