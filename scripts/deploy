@@ -19,14 +19,20 @@ exec 2> >(sed "s/^/[$HOSTNAME] /" >&2)
 # TODO: What about GC?
 # TODO: Generate hardware-config every time?
 
-echo "Copying closure to host.." >&2
+OLDSYSTEM=$(ssh $SSH_OPTS $HOST realpath /run/current-system)
+if [ "$OLDSYSTEM" == "$SYSTEM" ]; then
+	echo "No deploy necessary" >&2
+	exit 0
+fi
+
+echo "Copying closure to host..." >&2
 nix-copy-closure -s --to $HOST $SYSTEM $SWITCH
 
-echo "Triggering system switcher.." >&2
+echo "Triggering system switcher..." >&2
 id=$(ssh $SSH_OPTS $HOST "$SWITCH/bin/switch" start $SYSTEM)
 
 
-echo "Trying to confirm success.." >&2
+echo "Trying to confirm success..." >&2
 set +e
 prevstatus="unknown"
 prevactive=0
