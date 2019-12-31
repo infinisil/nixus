@@ -5,9 +5,7 @@ let
   inherit (lib) types;
 
   switch = pkgs.runCommandNoCC "switch" {
-    # TODO: Make NixOS module for this
-    switchTimeout = 120;
-    successTimeout = 10;
+    inherit (config) switchTimeout successTimeout;
   } ''
     mkdir -p $out/bin
     substituteAll ${scripts/switch} $out/bin/switch
@@ -18,7 +16,7 @@ let
     systemd.services.sshd.stopIfChanged = lib.mkForce true;
   };
 
-  machineType = { name, config, ... }: {
+  machineOptions = { name, config, ... }: {
 
     options = {
       # TODO: What about different ssh ports? Some access abstraction perhaps?
@@ -93,7 +91,7 @@ let
 in {
   options = {
     machines = lib.mkOption {
-      type = lib.types.attrsOf (lib.types.submodule machineType);
+      type = lib.types.attrsOf (lib.types.submodule machineOptions);
       description = "machines";
     };
 
@@ -101,6 +99,25 @@ in {
       type = lib.types.package;
       readOnly = true;
     };
+
+    switchTimeout = lib.mkOption {
+      type = types.ints.unsigned;
+      default = 10;
+      description = ''
+        How many seconds remote hosts should wait for the system activation
+        command to finish before considering it failed.
+      '';
+    };
+
+    successTimeout = lib.mkOption {
+      type = types.ints.unsigned;
+      default = 10;
+      description = ''
+        How many seconds remote hosts should wait for the success
+        confirmation before rolling back.
+      '';
+    };
+
   };
 
   # TODO: What about requiring either all machines to succeed or all get rolled back?
