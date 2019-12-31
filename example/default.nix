@@ -1,7 +1,9 @@
 import ../. {
 
-  default.configuration = { lib, name, ... }: {
-    networking.hostName = lib.mkDefault name;
+  default = { name, ... }: {
+    configuration = { lib, ... }: {
+      networking.hostName = lib.mkDefault name;
+    };
 
     # Which nixpkgs version we want to use for this machine
     nixpkgs = fetchTarball {
