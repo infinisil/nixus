@@ -29,133 +29,133 @@ cd /var/lib/system-switcher
 
 switch-start() {
   local system=$1
-	if ! [ -x "$system/bin/switch-to-configuration" ]; then
-		echo "$system doesn't appear to be a NixOS system" >&2
-		exit 1
-	fi
+  if ! [ -x "$system/bin/switch-to-configuration" ]; then
+    echo "$system doesn't appear to be a NixOS system" >&2
+    exit 1
+  fi
 
   local id
-	if [ -f next ]; then
-		id=$(cat next)
-	else
-		id=0
-	fi
+  if [ -f next ]; then
+    id=$(cat next)
+  else
+    id=0
+  fi
 
   local current="system-$id"
-	if ! ln -sT "system-$id" current; then
-		echo "Switch $(readlink current) is already in progress" >&2
-		exit 1
-	fi
+  if ! ln -sT "system-$id" current; then
+    echo "Switch $(readlink current) is already in progress" >&2
+    exit 1
+  fi
 
-	echo $(( id + 1 )) > next
-	mkdir "$current"
-	ln -sT "$system" current/system
-	echo unknown > current/status
-	echo 1 > current/active
+  echo $(( id + 1 )) > next
+  mkdir "$current"
+  ln -sT "$system" current/system
+  echo unknown > current/status
+  echo 1 > current/active
 
-	nohup "$0" run 2>"$current/log" >/dev/null &
+  nohup "$0" run 2>"$current/log" >/dev/null &
 
-	echo "$id"
+  echo "$id"
 }
 
 switch-active() {
-	local id=$1
-	cat "system-$id/status"
-	[ ! -p "system-$id/confirm" ]
-	local active=$(cat "system-$id/active")
-	# Could also wait for updates after the ping
-	if [ -p "system-$id/confirm" ]; then
-		echo PING > "system-$id/confirm"
-	fi
-	exit "$active"
+  local id=$1
+  cat "system-$id/status"
+  [ ! -p "system-$id/confirm" ]
+  local active=$(cat "system-$id/active")
+  # Could also wait for updates after the ping
+  if [ -p "system-$id/confirm" ]; then
+    echo PING > "system-$id/confirm"
+  fi
+  exit "$active"
 }
 
 
 waitConfirm() {
-	mkfifo current/confirm
-	echo "Waiting for confirmation.." >&2
-	read -t @successTimeout@ -r <>current/confirm
-	confirmed=$?
-	rm current/confirm
-	return $confirmed
+  mkfifo current/confirm
+  echo "Waiting for confirmation.." >&2
+  read -t @successTimeout@ -r <>current/confirm
+  confirmed=$?
+  rm current/confirm
+  return $confirmed
 }
 
 switch() {
-	local system=$1
-	local action=$2
-	timeout @switchTimeout@ "$system/bin/switch-to-configuration" "$action"
-	local code=$?
-	if [ $code -eq 124 ]; then
-		echo "Activation of $system timed out" >&2
-	elif [ $code -ne 0 ]; then
-		echo "Activation of $system failed" >&2
-	fi
-	return $code
+  local system=$1
+  local action=$2
+  timeout @switchTimeout@ "$system/bin/switch-to-configuration" "$action"
+  local code=$?
+  if [ $code -eq 124 ]; then
+    echo "Activation of $system timed out" >&2
+  elif [ $code -ne 0 ]; then
+    echo "Activation of $system failed" >&2
+  fi
+  return $code
 }
 
 fail() {
-	echo failure > current/status
-	echo "Rolling back.." >&2
-	switch "$1" switch
+  echo failure > current/status
+  echo "Rolling back.." >&2
+  switch "$1" switch
 
-	waitConfirm
-	code=$?
+  waitConfirm
+  code=$?
 
-	echo 0 > current/active
-	rm current
+  echo 0 > current/active
+  rm current
 
-	if [ "$code" -ne 0 ]; then
-		reboot
-	fi
+  if [ "$code" -ne 0 ]; then
+    reboot
+  fi
 
-	exit 1
+  exit 1
 }
 
 switch-run() {
-	if [ ! -d current ]; then
-		echo "No system to activate" >&2
-		exit 1
-	fi
+  if [ ! -d current ]; then
+    echo "No system to activate" >&2
+    exit 1
+  fi
 
-	local newsystem=$(realpath current/system)
+  local newsystem=$(realpath current/system)
   local oldsystem=$(realpath /run/current-system)
 
-	if switch "$newsystem" test; then
-		echo "Activated new system successfully"
-		if waitConfirm; then
-			echo "Success confirmation received, activating system" >&2
-			if switch "$newsystem" boot; then
-				nix-env -p /nix/var/nix/profiles/system --set "$newsystem"
-				echo success > current/status
-				echo 0 > current/active
-				rm current
-			else
-				echo "Failed to boot switch" >&2
-				fail "$oldsystem"
-			fi
-		else
-			echo "Success confirmation not received in time" >&2
-			fail "$oldsystem"
-		fi
-	else
-		echo "System activation failed" >&2
-		fail "$oldsystem"
-	fi
+  if switch "$newsystem" test; then
+    echo "Activated new system successfully"
+    if waitConfirm; then
+      echo "Success confirmation received, activating system" >&2
+      if switch "$newsystem" boot; then
+        nix-env -p /nix/var/nix/profiles/system --set "$newsystem"
+        echo success > current/status
+        echo 0 > current/active
+        rm current
+      else
+        echo "Failed to boot switch" >&2
+        fail "$oldsystem"
+      fi
+    else
+      echo "Success confirmation not received in time" >&2
+      fail "$oldsystem"
+    fi
+  else
+    echo "System activation failed" >&2
+    fail "$oldsystem"
+  fi
 
 }
 
 case "$1" in
-	"start")
-		switch-start "$2"
-		;;
-	"active")
-		switch-active "$2"
-		;;
-	"run")
-		switch-run
-		;;
-	*)
-		echo "No such command $1" >&2
-		;;
+  "start")
+    switch-start "$2"
+    ;;
+  "active")
+    switch-active "$2"
+    ;;
+  "run")
+    switch-run
+    ;;
+  *)
+    echo "No such command $1" >&2
+    ;;
 esac
 

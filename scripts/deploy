@@ -46,22 +46,22 @@ prevstatus="unknown"
 prevactive=0
 active=1
 while [ "$active" != 0 ]; do
-	# TODO: Because of the imperative network-setup script, when e.g. the defaultGateway is removed, the previous entry is still persisted on a rebuild switch, even though with a reboot it wouldn't. Maybe use the more modern and declarative networkd to get around this
-	status=$(timeout 5 ssh -o ControlPath=none $SSH_OPTS $HOST "$SWITCH/bin/switch" active "$id")
-	active=$?
-	sleep 1
+  # TODO: Because of the imperative network-setup script, when e.g. the defaultGateway is removed, the previous entry is still persisted on a rebuild switch, even though with a reboot it wouldn't. Maybe use the more modern and declarative networkd to get around this
+  status=$(timeout 5 ssh -o ControlPath=none $SSH_OPTS $HOST "$SWITCH/bin/switch" active "$id")
+  active=$?
+  sleep 1
 done
 
 case "$status" in
-	"success")
-		echo "Successfully activated new system!" >&2
-		;;
-	"failure")
-		echo "Failed to activate new system! Rolled back to previous one" >&2
-		# TODO: Try to show what failed
-		#ssh $SSH_OPTS $HOST cat /var/lib/system-switcher/system-$id/log
-		;;
-	*)
-	  echo "This shouldn't occur!" >&2
-		;;
+  "success")
+    echo "Successfully activated new system!" >&2
+    ;;
+  "failure")
+    echo "Failed to activate new system! Rolled back to previous one" >&2
+    # TODO: Try to show what failed
+    #ssh $SSH_OPTS $HOST cat /var/lib/system-switcher/system-$id/log
+    ;;
+  *)
+    echo "This shouldn't occur!" >&2
+    ;;
 esac
