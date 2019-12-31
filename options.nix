@@ -112,7 +112,7 @@ let
 
 in {
   options = {
-    default = lib.mkOption {
+    defaults = lib.mkOption {
       type = lib.types.submodule nodeOptions;
       example = lib.literalExample ''
         { name, ... }: {
@@ -125,7 +125,7 @@ in {
     };
 
     nodes = lib.mkOption {
-      type = lib.types.attrsOf (lib.types.submodule ([ nodeOptions ] ++ options.default.definitions));
+      type = lib.types.attrsOf (lib.types.submodule ([ nodeOptions ] ++ options.defaults.definitions));
       description = "nodes";
     };
 

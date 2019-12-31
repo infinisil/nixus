@@ -1,6 +1,6 @@
 import ../. {
 
-  default = { name, ... }: {
+  defaults = { name, ... }: {
     configuration = { lib, ... }: {
       networking.hostName = lib.mkDefault name;
     };
