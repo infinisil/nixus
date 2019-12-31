@@ -26,7 +26,7 @@ let
 
   topconfig = config;
 
-  machineOptions = { name, config, ... }: {
+  nodeOptions = { name, config, ... }: {
 
     options = {
 
@@ -34,7 +34,7 @@ let
         type = lib.types.bool;
         default = true;
         description = ''
-          Whether this machine should be included in the build.
+          Whether this node should be included in the build.
         '';
       };
 
@@ -68,7 +68,7 @@ let
             specialArgs = {
               lib = import (config.nixpkgs + "/lib");
               # TODO: Move these to not special args
-              machines = lib.mapAttrs (name: value: value.configuration) topconfig.machines;
+              nodes = lib.mapAttrs (name: value: value.configuration) topconfig.nodes;
               inherit name baseModules;
             };
             modules = baseModules ++ [ (pkgsModule config.nixpkgs) ];
@@ -113,20 +113,20 @@ let
 in {
   options = {
     default = lib.mkOption {
-      type = lib.types.submodule machineOptions;
+      type = lib.types.submodule nodeOptions;
       example = lib.literalExample ''
         { name, ... }: {
           networking.hostName = name;
         }
       '';
       description = ''
-        Configuration to apply to all machines.
+        Configuration to apply to all nodes.
       '';
     };
 
-    machines = lib.mkOption {
-      type = lib.types.attrsOf (lib.types.submodule ([ machineOptions ] ++ options.default.definitions));
-      description = "machines";
+    nodes = lib.mkOption {
+      type = lib.types.attrsOf (lib.types.submodule ([ nodeOptions ] ++ options.default.definitions));
+      description = "nodes";
     };
 
     deployScript = lib.mkOption {
@@ -154,13 +154,13 @@ in {
 
   };
 
-  # TODO: What about requiring either all machines to succeed or all get rolled back?
+  # TODO: What about requiring either all nodes to succeed or all get rolled back?
   config.deployScript = pkgs.writeScript "deploy" ''
     #!${pkgs.runtimeShell}
-    ${lib.concatMapStrings (machine: lib.optionalString machine.enabled ''
+    ${lib.concatMapStrings (node: lib.optionalString node.enabled ''
 
-      ${machine.deployScript}/bin/deploy &
-    '') (lib.attrValues config.machines)}
+      ${node.deployScript}/bin/deploy &
+    '') (lib.attrValues config.nodes)}
     wait
   '';
 }
