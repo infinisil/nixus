@@ -1,4 +1,4 @@
-{ config, lib, ... }:
+{ options, config, lib, ... }:
 let
   # TODO: How to make this pure?
   pkgs = import <nixpkgs> {};
@@ -103,8 +103,20 @@ let
 
 in {
   options = {
+    default = lib.mkOption {
+      type = lib.types.submodule machineOptions;
+      example = lib.literalExample ''
+        { name, ... }: {
+          networking.hostName = name;
+        }
+      '';
+      description = ''
+        Configuration to apply to all machines.
+      '';
+    };
+
     machines = lib.mkOption {
-      type = lib.types.attrsOf (lib.types.submodule machineOptions);
+      type = lib.types.attrsOf (lib.types.submodule ([ machineOptions ] ++ options.default.definitions));
       description = "machines";
     };
 

@@ -7,7 +7,6 @@
   boot.kernelPackages = pkgs.linuxPackages_latest;
 
   networking = {
-    hostName = "example";
     useDHCP = false;
     nameservers = [ "1.1.1.1" "1.0.0.1" ];
     defaultGateway = "138.68.80.1";
