@@ -1,6 +1,4 @@
 #! @shell@
-set -e
-
 
 # TODO: Make interruptible/atomic
 # TODO: Use correct ssh port? (can change over a deploy)
@@ -19,14 +17,24 @@ exec 2> >(sed "s/^/[$HOSTNAME] /" >&2)
 # TODO: What about GC?
 # TODO: Generate hardware-config every time?
 
-OLDSYSTEM=$(ssh $SSH_OPTS $HOST realpath /run/current-system)
+echo "Connecting to host..." >&2
+
+OLDSYSTEM=$(timeout 5 ssh $SSH_OPTS $HOST realpath /run/current-system)
+if [ $? -ne 0 ]; then
+  echo "Unable to connect to host!" >&2
+  exit 1
+fi
+
+set -e
+
 if [ "$OLDSYSTEM" == "$SYSTEM" ]; then
-	echo "No deploy necessary" >&2
-	exit 0
+  echo "No deploy necessary" >&2
+  exit 0
 fi
 
 echo "Copying closure to host..." >&2
 nix-copy-closure -s --to $HOST $SYSTEM $SWITCH
+
 
 echo "Triggering system switcher..." >&2
 id=$(ssh $SSH_OPTS $HOST "$SWITCH/bin/switch" start $SYSTEM)
