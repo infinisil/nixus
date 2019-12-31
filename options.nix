@@ -29,6 +29,15 @@ let
   machineOptions = { name, config, ... }: {
 
     options = {
+
+      enabled = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Whether this machine should be included in the build.
+        '';
+      };
+
       # TODO: What about different ssh ports? Some access abstraction perhaps?
       host = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
@@ -148,7 +157,8 @@ in {
   # TODO: What about requiring either all machines to succeed or all get rolled back?
   config.deployScript = pkgs.writeScript "deploy" ''
     #!${pkgs.runtimeShell}
-    ${lib.concatMapStrings (machine: ''
+    ${lib.concatMapStrings (machine: lib.optionalString machine.enabled ''
+
       ${machine.deployScript}/bin/deploy &
     '') (lib.attrValues config.machines)}
     wait
