@@ -17,6 +17,11 @@ exec 2> >(sed "s/^/[$HOSTNAME] /" >&2)
 # TODO: What about GC?
 # TODO: Generate hardware-config every time?
 
+if [ -z "$HOST" ]; then
+  echo "Don't know how to reach machine, you need to set a non-null value for machines.\"$HOSTNAME\".host" >&2
+  exit 1
+fi
+
 echo "Connecting to host..." >&2
 
 OLDSYSTEM=$(timeout 5 ssh $SSH_OPTS $HOST realpath /run/current-system)

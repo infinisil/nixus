@@ -31,10 +31,10 @@ let
     options = {
       # TODO: What about different ssh ports? Some access abstraction perhaps?
       host = lib.mkOption {
-        type = lib.types.str;
+        type = lib.types.nullOr lib.types.str;
         example = "root@172.18.67.46";
         description = ''
-          How to reach the host via ssh.
+          How to reach the host via ssh. Deploying is disabled if null.
         '';
       };
 
@@ -90,7 +90,7 @@ let
     config = {
       deployScript = pkgs.runCommandNoCC "deploy-${name}" {
         hostname = name;
-        inherit (config) host;
+        host = if config.host == null then "" else config.host;
         inherit switch;
         systembuild = config.configuration.system.build.toplevel;
       } ''
