@@ -1,6 +1,6 @@
 # NixOSes: Deployment tool for multiple NixOS systems
 
-This is a work-in-progress deployment tool I'm developing for myself and [https://niteo.co/](Niteo). Noteworthy features include:
+This is a work-in-progress deployment tool I'm developing for myself and [Niteo](https://niteo.co/). Noteworthy features include:
 
 - Auto-rollback if the machine can't be reached anymore, protecting against a number of configuration mistakes such as
   - Messing up the network config
