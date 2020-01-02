@@ -1,4 +1,0 @@
-[submodule "nixpkgs"]
-	path = nixpkgs
-	url = https://github.com/Infinisil/nixpkgs.git
-	branch = module-improvements
