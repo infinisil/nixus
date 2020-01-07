@@ -47,6 +47,16 @@ let
         '';
       };
 
+      hasFastConnection = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Whether there is a fast connection to this host. If true it will cause
+          all derivations to be copied directly from the deployment host. If
+          false, the substituters are used when possible instead.
+        '';
+      };
+
       nixpkgs = lib.mkOption {
         type = lib.types.path;
         example = lib.literalExample ''
@@ -102,6 +112,7 @@ let
         host = if config.host == null then "" else config.host;
         inherit switch;
         systembuild = config.configuration.system.build.toplevel;
+        fast = toString config.hasFastConnection;
       } ''
         mkdir -p $out/bin
         substituteAll ${scripts/deploy} $out/bin/deploy

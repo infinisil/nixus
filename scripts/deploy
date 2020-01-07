@@ -6,6 +6,7 @@ HOSTNAME=@hostname@
 HOST=@host@
 SYSTEM=@systembuild@
 SWITCH=@switch@
+FAST=@fast@
 
 SSH_OPTS="-o BatchMode=yes"
 
@@ -38,7 +39,10 @@ if [ "$OLDSYSTEM" == "$SYSTEM" ]; then
 fi
 
 echo "Copying closure to host..." >&2
-nix-copy-closure -s --to $HOST $SYSTEM $SWITCH
+if [[ -z "$FAST" ]]; then
+  substitute=1
+fi
+nix-copy-closure ${substitute:+-s} --to $HOST $SYSTEM $SWITCH
 
 
 echo "Triggering system switcher..." >&2
