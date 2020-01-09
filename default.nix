@@ -1,14 +1,20 @@
 conf: let
-  nixpkgs = fetchTarball {
-    # Needs to include changes from https://github.com/NixOS/nixpkgs/pull/75031
-    url = "https://github.com/NixOS/nixpkgs/tarball/cdf79db19d6ce1f305acebd86dabd58edb42e7c0";
-    sha256 = "0m7ib1qdyymsg3kq10pcy0239gacvrc605vxgvwghyp6axib24ff";
+  nixpkgs = import ./nixpkgs.nix;
+
+  pkgs = import nixpkgs {
+    config = {};
+    overlays = [
+      (self: super: {
+        lib = super.lib.extend (import ./dag.nix);
+      })
+    ];
   };
 
-  result = (import (nixpkgs + "/lib")).evalModules {
+  result = pkgs.lib.evalModules {
     modules = [
       ./options.nix
       conf
+      { _module.args.pkgs = pkgs; }
     ];
   };
 in result.config.deployScript // result

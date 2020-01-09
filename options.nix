@@ -38,25 +38,6 @@ let
         '';
       };
 
-      # TODO: What about different ssh ports? Some access abstraction perhaps?
-      host = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        example = "root@172.18.67.46";
-        description = ''
-          How to reach the host via ssh. Deploying is disabled if null.
-        '';
-      };
-
-      hasFastConnection = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
-        description = ''
-          Whether there is a fast connection to this host. If true it will cause
-          all derivations to be copied directly from the deployment host. If
-          false, the substituters are used when possible instead.
-        '';
-      };
-
       nixpkgs = lib.mkOption {
         type = lib.types.path;
         example = lib.literalExample ''
@@ -70,13 +51,12 @@ let
         '';
       };
 
-
       configuration = lib.mkOption {
         type =
           let baseModules = import (config.nixpkgs + "/nixos/modules/module-list.nix");
           in types.submoduleWith {
             specialArgs = {
-              lib = import (config.nixpkgs + "/lib");
+              lib = (import (config.nixpkgs + "/lib")).extend (import ./dag.nix);
               # TODO: Move these to not special args
               nodes = lib.mapAttrs (name: value: value.configuration) topconfig.nodes;
               inherit name baseModules;
@@ -96,32 +76,19 @@ let
         '';
       };
 
-      deployScript = lib.mkOption {
-        type = lib.types.package;
-        readOnly = true;
-        description = ''
-          The path to the script to deploy all hosts.
-        '';
-      };
-
     };
 
     config = {
-      deployScript = pkgs.runCommandNoCC "deploy-${name}" {
-        hostname = name;
-        host = if config.host == null then "" else config.host;
-        inherit switch;
-        systembuild = config.configuration.system.build.toplevel;
-        fast = toString config.hasFastConnection;
-      } ''
-        mkdir -p $out/bin
-        substituteAll ${scripts/deploy} $out/bin/deploy
-        chmod +x $out/bin/deploy
-      '';
+      _module.args.pkgs = config.configuration._module.args.pkgs;
     };
   };
 
 in {
+
+  imports = [
+    ./deploy.nix
+  ];
+
   options = {
     defaults = lib.mkOption {
       type = lib.types.submodule nodeOptions;
@@ -136,42 +103,9 @@ in {
     };
 
     nodes = lib.mkOption {
-      type = lib.types.attrsOf (lib.types.submodule ([ nodeOptions ] ++ options.defaults.definitions));
+      type = lib.types.attrsOf (lib.types.submodule (options.defaults.type.functor.payload.modules ++ options.defaults.definitions));
       description = "nodes";
     };
 
-    deployScript = lib.mkOption {
-      type = lib.types.package;
-      readOnly = true;
-    };
-
-    switchTimeout = lib.mkOption {
-      type = types.ints.unsigned;
-      default = 60;
-      description = ''
-        How many seconds remote hosts should wait for the system activation
-        command to finish before considering it failed.
-      '';
-    };
-
-    successTimeout = lib.mkOption {
-      type = types.ints.unsigned;
-      default = 20;
-      description = ''
-        How many seconds remote hosts should wait for the success
-        confirmation before rolling back.
-      '';
-    };
-
   };
-
-  # TODO: What about requiring either all nodes to succeed or all get rolled back?
-  config.deployScript = pkgs.writeScript "deploy" ''
-    #!${pkgs.runtimeShell}
-    ${lib.concatMapStrings (node: lib.optionalString node.enabled ''
-
-      ${node.deployScript}/bin/deploy &
-    '') (lib.attrValues config.nodes)}
-    wait
-  '';
 }
