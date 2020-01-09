@@ -4,14 +4,6 @@ let
   pkgs = import <nixpkgs> {};
   inherit (lib) types;
 
-  switch = pkgs.runCommandNoCC "switch" {
-    inherit (config) switchTimeout successTimeout;
-  } ''
-    mkdir -p $out/bin
-    substituteAll ${scripts/switch} $out/bin/switch
-    chmod +x $out/bin/switch
-  '';
-
   extraConfig = { lib, ... }: {
     systemd.services.sshd.stopIfChanged = lib.mkForce true;
   };
@@ -56,12 +48,12 @@ let
           let baseModules = import (config.nixpkgs + "/nixos/modules/module-list.nix");
           in types.submoduleWith {
             specialArgs = {
-              lib = (import (config.nixpkgs + "/lib")).extend (import ./dag.nix);
+              lib = (import (config.nixpkgs + "/lib")).extend (import ../dag.nix);
               # TODO: Move these to not special args
               nodes = lib.mapAttrs (name: value: value.configuration) topconfig.nodes;
               inherit name baseModules;
             };
-            modules = baseModules ++ [ (pkgsModule config.nixpkgs) ];
+            modules = baseModules ++ [ (pkgsModule config.nixpkgs) extraConfig ];
           };
         default = {};
         example = lib.literalExample ''
@@ -85,10 +77,6 @@ let
 
 in {
 
-  imports = [
-    ./deploy.nix
-  ];
-
   options = {
     defaults = lib.mkOption {
       type = lib.types.submodule nodeOptions;
@@ -103,6 +91,7 @@ in {
     };
 
     nodes = lib.mkOption {
+      # TODO: Instead of adding modules from defaults to here, use ones here for defaults
       type = lib.types.attrsOf (lib.types.submodule (options.defaults.type.functor.payload.modules ++ options.defaults.definitions));
       description = "nodes";
     };

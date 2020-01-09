@@ -12,7 +12,9 @@ conf: let
 
   result = pkgs.lib.evalModules {
     modules = [
-      ./options.nix
+      modules/options.nix
+      modules/deploy.nix
+      modules/secrets.nix
       conf
       { _module.args.pkgs = pkgs; }
     ];

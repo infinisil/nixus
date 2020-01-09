@@ -2,7 +2,17 @@
 let
   inherit (lib) types;
 
-  nodeOptions = ({ name, pkgs, config, ... }: {
+  nodeOptions = ({ name, pkgs, config, ... }:
+    let
+      switch = pkgs.runCommandNoCC "switch" {
+        inherit (config) switchTimeout successTimeout;
+      } ''
+        mkdir -p $out/bin
+        substituteAll ${../scripts/switch} $out/bin/switch
+        chmod +x $out/bin/switch
+      '';
+      system = config.configuration.system.build.toplevel;
+    in {
     options = {
       deployScripts = lib.mkOption {
         type = types.dagOf types.lines;
@@ -49,20 +59,32 @@ let
           false, the substituters are used when possible instead.
         '';
       };
+
+      closurePaths = lib.mkOption {
+        type = lib.types.listOf lib.types.package;
+        default = [];
+        description = ''
+          Derivation paths to copy to the host while deploying
+        '';
+      };
+
     };
+
+    config.closurePaths = [ system switch ];
 
     config.deployScripts = {
       copy-closure = lib.dag.entryBefore ["switch"] ''
         echo "Copying closure to host..." >&2
         set -e
-        nix-copy-closure ${lib.optionalString (!config.hasFastConnection) "-s"} --to "$HOST" "$SYSTEM" "$SWITCH"
+        # TOOD: Prevent garbage collection until the end of the deploy
+        nix-copy-closure ${lib.optionalString (!config.hasFastConnection) "-s"} --to "$HOST" ${lib.escapeShellArgs config.closurePaths}
         set +e
       '';
 
       switch = lib.dag.entryAnywhere ''
         echo "Triggering system switcher..." >&2
         set -e
-        id=$(ssh -o BatchMode=yes "$HOST" "$SWITCH/bin/switch" start "$SYSTEM")
+        id=$(ssh -o BatchMode=yes "$HOST" "${switch}/bin/switch" start "${system}")
         set +e
 
         echo "Trying to confirm success..." >&2
@@ -74,7 +96,7 @@ let
           # defaultGateway is removed, the previous entry is still persisted on
           # a rebuild switch, even though with a reboot it wouldn't. Maybe use
           # the more modern and declarative networkd to get around this
-          status=$(timeout 5 ssh -o ControlPath=none -o BatchMode=yes "$HOST" "$SWITCH/bin/switch" active "$id")
+          status=$(timeout 5 ssh -o ControlPath=none -o BatchMode=yes "$HOST" "${switch}/bin/switch" active "$id")
           active=$?
           sleep 1
         done
@@ -97,14 +119,6 @@ let
 
     config.combinedDeployScript =
       let
-        switch = pkgs.runCommandNoCC "switch" {
-          inherit (config) switchTimeout successTimeout;
-        } ''
-          mkdir -p $out/bin
-          substituteAll ${scripts/switch} $out/bin/switch
-          chmod +x $out/bin/switch
-        '';
-
         sortedScripts = (lib.dag.topoSort config.deployScripts).result or (throw "Cycle in DAG for deployScripts");
       in
       pkgs.writeScriptBin "deploy-${name}" (''
@@ -118,8 +132,6 @@ let
         echo "Don't know how to reach node, you need to set a non-null value for nodes.\"$HOSTNAME\".host" >&2
         exit 1
       '' else ''
-        SYSTEM=${config.configuration.system.build.toplevel}
-        SWITCH=${switch}
         HOST=${config.host}
 
         echo "Connecting to host..." >&2
@@ -130,7 +142,7 @@ let
           exit 1
         fi
 
-        if [ "$OLDSYSTEM" == "$SYSTEM" ]; then
+        if [ "$OLDSYSTEM" == "${system}" ]; then
           echo "No deploy necessary" >&2
           #exit 0
         fi
@@ -158,7 +170,7 @@ in {
   # TODO: What about requiring either all nodes to succeed or all get rolled back?
   config.deployScript =
     let
-      pkgs = import (import ./nixpkgs.nix) {
+      pkgs = import (import ../nixpkgs.nix) {
         config = {};
         overlays = [];
       };
