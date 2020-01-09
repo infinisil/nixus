@@ -87,6 +87,7 @@ in {
 
   imports = [
     ./deploy.nix
+    ./secrets.nix
   ];
 
   options = {

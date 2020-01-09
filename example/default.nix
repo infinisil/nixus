@@ -1,4 +1,6 @@
-import ../. {
+import ../. ({ config, ... }: {
+
+  secrets.foo.file = ./secret;
 
   defaults = { name, ... }: {
     configuration = { lib, ... }: {
@@ -12,12 +14,17 @@ import ../. {
     };
   };
 
-  nodes."foo.example.com" = {
+  nodes.foo = { lib, ... }: {
     # How to reach this node
     host = "root@138.68.83.114";
 
     # What configuration it should have
-    configuration = ./configuration.nix;
+    configuration = lib.mkMerge [
+      ./configuration.nix
+      {
+        environment.etc.foo.source = config.secrets.foo.file;
+      }
+    ];
   };
 
-}
+})
