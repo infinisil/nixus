@@ -8,7 +8,7 @@ let
         inherit (config) switchTimeout successTimeout;
       } ''
         mkdir -p $out/bin
-        substituteAll ${scripts/switch} $out/bin/switch
+        substituteAll ${../scripts/switch} $out/bin/switch
         chmod +x $out/bin/switch
       '';
       system = config.configuration.system.build.toplevel;
@@ -170,7 +170,7 @@ in {
   # TODO: What about requiring either all nodes to succeed or all get rolled back?
   config.deployScript =
     let
-      pkgs = import (import ./nixpkgs.nix) {
+      pkgs = import (import ../nixpkgs.nix) {
         config = {};
         overlays = [];
       };

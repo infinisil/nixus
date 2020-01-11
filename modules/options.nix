@@ -56,7 +56,7 @@ let
           let baseModules = import (config.nixpkgs + "/nixos/modules/module-list.nix");
           in types.submoduleWith {
             specialArgs = {
-              lib = (import (config.nixpkgs + "/lib")).extend (import ./dag.nix);
+              lib = (import (config.nixpkgs + "/lib")).extend (import ../dag.nix);
               # TODO: Move these to not special args
               nodes = lib.mapAttrs (name: value: value.configuration) topconfig.nodes;
               inherit name baseModules;
@@ -84,11 +84,6 @@ let
   };
 
 in {
-
-  imports = [
-    ./deploy.nix
-    ./secrets.nix
-  ];
 
   options = {
     defaults = lib.mkOption {
