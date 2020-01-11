@@ -15,10 +15,20 @@ let
         type = types.path;
         apply = indirectSecret name;
       };
+
       target = lib.mkOption {
         type = types.path;
         apply = toString;
         default = keyDirectory + "/" + name;
+      };
+
+      forceRequire = lib.mkOption {
+        type = types.bool;
+        default = false;
+        description = ''
+          Whether this secret should be deployed to the machine even if
+          nothing depends on it.
+        '';
       };
     };
   };
@@ -159,6 +169,10 @@ in {
       };
 
       config = {
+
+        configuration.system.extraDependencies = map (secret: secret.file)
+          (lib.filter (secret: secret.forceRequire)
+          (lib.attrValues config.secrets));
 
         # The global secrets are available by default too
         secrets = lib.zipAttrsWith (name: values:
