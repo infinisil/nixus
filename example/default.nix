@@ -1,6 +1,6 @@
 import ../. ({ config, ... }: {
 
-  secrets.foo.file = ./secret;
+  globalSecrets.foo.file = ./secret;
 
   defaults = { name, ... }: {
     configuration = { lib, ... }: {
@@ -14,7 +14,7 @@ import ../. ({ config, ... }: {
     };
   };
 
-  nodes.foo = { lib, ... }: {
+  nodes.foo = { lib, config, ... }: {
     # How to reach this node
     host = "root@138.68.83.114";
 
