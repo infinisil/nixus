@@ -101,6 +101,7 @@ let
     PATH=${pkgs.lib.makeBinPath [ pkgs.coreutils pkgs.gnutar pkgs.jq ]}
     echo "Packing up all necessary secrets.." >&2
     set -e
+    # TODO: Use something probably in ram, e.g. $XDG_RUNTIME_DIR or /dev/shm
     tmp=$(mktemp -d)
     trap "rm -r $tmp" exit
 
@@ -126,6 +127,7 @@ let
     #!${pkgs.runtimeShell}
     PATH=${pkgs.lib.makeBinPath [ pkgs.coreutils pkgs.gnutar pkgs.jq ]}
     set -e
+    # TODO: Use ramfs for temp dir so there's no chance of it going to disk
     tmp=$(mktemp -d)
     trap "rm -r $tmp" exit
 
