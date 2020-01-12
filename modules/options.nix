@@ -50,7 +50,7 @@ let
             specialArgs = {
               lib = (import (config.nixpkgs + "/lib")).extend (import ../dag.nix);
               # TODO: Move these to not special args
-              nodes = lib.mapAttrs (name: value: value.configuration) topconfig.nodes;
+              #nodes = lib.mapAttrs (name: value: value.configuration) topconfig.nodes;
               inherit name baseModules;
             };
             modules = baseModules ++ [ (pkgsModule config.nixpkgs) extraConfig ];
