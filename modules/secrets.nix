@@ -69,11 +69,13 @@ in {
   options.defaults = lib.mkOption {
     type = types.submodule ({ config, ... }: {
       options.configuration = lib.mkOption {
-        type = types.submodule {
-          options.secrets = lib.mkOption {
-            type = types.attrsOf (types.submodule secretType);
-            default = {};
-          };
+        type = types.submoduleWith {
+          modules = [{
+            options.secrets = lib.mkOption {
+              type = types.attrsOf (types.submodule secretType);
+              default = {};
+            };
+          }];
         };
       };
 
