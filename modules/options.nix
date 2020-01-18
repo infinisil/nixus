@@ -91,7 +91,6 @@ in {
     };
 
     nodes = lib.mkOption {
-      # TODO: Instead of adding modules from defaults to here, use ones here for defaults
       type = lib.types.attrsOf (lib.types.submodule (options.defaults.type.functor.payload.modules ++ options.defaults.definitions));
       description = "nodes";
     };

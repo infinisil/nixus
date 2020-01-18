@@ -68,10 +68,12 @@ in {
 
   options.defaults = lib.mkOption {
     type = types.submodule ({ config, ... }: {
-      options = {
-        secrets = lib.mkOption {
-          type = types.attrsOf (types.submodule secretType);
-          default = {};
+      options.configuration = lib.mkOption {
+        type = types.submodule {
+          options.secrets = lib.mkOption {
+            type = types.attrsOf (types.submodule secretType);
+            default = {};
+          };
         };
       };
 
@@ -79,7 +81,7 @@ in {
         let
           includedSecrets = requiredSecrets {
             system = config.configuration.system.build.toplevel;
-            secrets = config.secrets;
+            secrets = config.configuration.secrets;
           };
         in {
 

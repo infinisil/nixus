@@ -1,4 +1,4 @@
-{ lib, pkgs, ... }: {
+{ lib, pkgs, config, ... }: {
 
   imports = [ ./hardware-configuration.nix ];
 
@@ -23,6 +23,9 @@
   users.users.root.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHjY4cuUk4IWgBgnEJSULkIHO+njUmIFP+WSWy7IobBs infinisil@vario"
   ];
+
+  secrets.foo.file = ./secret;
+  environment.etc.foo.source = config.secrets.foo.file;
 
   system.stateVersion = "19.09";
 }

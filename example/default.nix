@@ -16,13 +16,8 @@ import ../. ({ config, ... }: {
     # How to reach this node
     host = "root@138.68.83.114";
 
-    secrets.password.file = ./secret;
-
     # What configuration it should have
-    configuration = lib.mkMerge [
-      ./configuration.nix
-      { environment.etc.password.source = config.secrets.password.file; }
-    ];
+    configuration = ./configuration.nix;
   };
 
 })
