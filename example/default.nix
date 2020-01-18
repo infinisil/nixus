@@ -1,7 +1,5 @@
 import ../. ({ config, ... }: {
 
-  globalSecrets.foo.file = ./secret;
-
   defaults = { name, ... }: {
     configuration = { lib, ... }: {
       networking.hostName = lib.mkDefault name;
@@ -18,12 +16,12 @@ import ../. ({ config, ... }: {
     # How to reach this node
     host = "root@138.68.83.114";
 
+    secrets.password.file = ./secret;
+
     # What configuration it should have
     configuration = lib.mkMerge [
       ./configuration.nix
-      {
-        environment.etc.foo.source = config.secrets.foo.file;
-      }
+      { environment.etc.password.source = config.secrets.password.file; }
     ];
   };
 

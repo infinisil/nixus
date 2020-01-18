@@ -84,33 +84,33 @@ in {
         in {
 
         deployScripts.secrets = lib.dag.entryBefore ["switch"] ''
-          echo "Deploying secrets.." >&2
+          echo "Copying secrets..." >&2
 
-          ssh "$HOST" mkdir ${keyDirectory}
+          ssh "$HOST" mkdir -p ${keyDirectory}
 
           while read -r json; do
             name=$(echo "$json" | jq -r '.name')
             source=$(echo "$json" | jq -r '.source')
-            echo "Transfering secret $name"
+            echo "Copying secret '$name'" >&2
             scp "$source" "$HOST":${keyDirectory}/"$name"
           done < ${includedSecrets}
-
-          echo "Finished deploying secrets" >&2
         '';
 
         deployScripts.remove-secrets = lib.dag.entryAfter ["switch"] ''
-          mapfile -t requiredNames < <(jq -r '.name' ${includedSecrets})
+          if [ "$status" = success ]; then
+            mapfile -t requiredNames < <(jq -r '.name' ${includedSecrets})
 
-          # TODO: Handle failing deploy
-          echo "Unloading secrets that aren't needed" >&2
-          while IFS= read -r -d "" secret; do
-            for name in "''${requiredNames[@]}"; do
-              if [ "${keyDirectory}/$name" = "$secret" ]; then
-                continue 2
-              fi
-            done
-            ssh "$HOST" rm "$secret"
-          done < <(ssh "$HOST" find ${keyDirectory} -type f -print0)
+            echo "Removing secrets that aren't needed anymore..." >&2
+            while IFS= read -r -d "" secret; do
+              for name in "''${requiredNames[@]}"; do
+                if [ "${keyDirectory}/$name" = "$secret" ]; then
+                  continue 2
+                fi
+              done
+              echo "Removing secret '$secret'"
+              ssh "$HOST" rm "$secret"
+            done < <(ssh "$HOST" find ${keyDirectory} -type f -print0)
+          fi
         '';
       };
     });
