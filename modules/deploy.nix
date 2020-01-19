@@ -122,6 +122,17 @@ let
       pkgs.writeScriptBin "deploy-${name}" (''
         #!${pkgs.runtimeShell}
 
+        PATH=${lib.makeBinPath (with pkgs; [
+          procps
+          findutils
+          gnused
+          coreutils
+          openssh
+          nix
+          rsync
+          jq
+        ])}
+
         set -euo pipefail
 
         # Kill all child processes when interrupting/exiting
@@ -158,6 +169,8 @@ let
           # ======== PHASE: ${name} ========
           ${data}
         '') sortedScripts}
+
+        echo "Finished" >&2
       ''));
     });
 
