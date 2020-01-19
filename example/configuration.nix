@@ -24,7 +24,10 @@
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHjY4cuUk4IWgBgnEJSULkIHO+njUmIFP+WSWy7IobBs infinisil@vario"
   ];
 
+  users.users.bob.group = "users";
+
   secrets.foo.file = ./secret;
+  secrets.foo.user = "bob";
   environment.etc.foo.source = config.secrets.foo.file;
 
   system.stateVersion = "19.09";

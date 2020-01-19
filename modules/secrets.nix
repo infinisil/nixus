@@ -7,13 +7,22 @@ let
 
   # Abstract where the secret is gotten from (different hosts, not only localhost, different commands, not just files)
 
-  keyDirectory = "/run/keys";
+  # Note: This is persisted
+  # Note: NixOS by default adds /run/keys as a ramfs with 750 permissions and group config.ids.gids.key
+  keyDirectory = "/var/keys";
 
   secretType = { name, ... }: {
     options = {
       file = lib.mkOption {
         type = types.path;
         apply = indirectSecret name;
+      };
+      user = lib.mkOption {
+        type = types.str;
+        default = "root";
+        description = ''
+          The owner of the file
+        '';
       };
     };
   };
@@ -47,6 +56,7 @@ let
       path = value.file;
       source = value.file.file;
       hash = value.file.secretHash;
+      inherit (value) user;
     }) secrets;
 
     PATH = lib.makeBinPath [pkgs.buildPackages.jq];
@@ -87,16 +97,28 @@ in {
           };
         in {
 
+        # We can't use tmpfiles for this because we only know what secrets are included at build-time
+        configuration.system.activationScripts.secret-owners = lib.stringAfter [ "users" "groups" ] ''
+          while read -r json; do
+            name=$(echo "$json" | ${pkgs.jq}/bin/jq -r '.name')
+            user=$(echo "$json" | ${pkgs.jq}/bin/jq -r '.user')
+            chown -v "$user": "${keyDirectory}/$name"
+          done < /run/included-secrets
+
+          rm /run/included-secrets
+        '';
+
         deployScripts.secrets = lib.dag.entryBefore ["switch"] ''
           echo "Copying secrets..." >&2
 
-          ssh "$HOST" mkdir -p ${keyDirectory}
+          ssh "$HOST" mkdir -v -p -m 755 ${keyDirectory}
+          rsync "${includedSecrets}" "$HOST":/run/included-secrets
 
           while read -r json; do
             name=$(echo "$json" | jq -r '.name')
             source=$(echo "$json" | jq -r '.source')
             echo "Copying secret '$name'" >&2
-            scp "$source" "$HOST":${keyDirectory}/"$name"
+            rsync --perms --chmod=440 "$source" "$HOST":${keyDirectory}/"$name"
           done < ${includedSecrets}
         '';
 
