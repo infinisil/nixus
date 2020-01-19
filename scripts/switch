@@ -83,7 +83,7 @@ waitConfirm() {
 switch() {
   local system=$1
   local action=$2
-  timeout @switchTimeout@ "$system/bin/switch-to-configuration" "$action"
+  timeout --foreground @switchTimeout@ "$system/bin/switch-to-configuration" "$action"
   local code=$?
   if [ $code -eq 124 ]; then
     echo "Activation of $system timed out" >&2

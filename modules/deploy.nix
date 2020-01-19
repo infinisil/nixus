@@ -75,17 +75,13 @@ let
     config.deployScripts = {
       copy-closure = lib.dag.entryBefore ["switch"] ''
         echo "Copying closure to host..." >&2
-        set -e
         # TOOD: Prevent garbage collection until the end of the deploy
         nix-copy-closure ${lib.optionalString (!config.hasFastConnection) "-s"} --to "$HOST" ${lib.escapeShellArgs config.closurePaths}
-        set +e
       '';
 
       switch = lib.dag.entryAnywhere ''
         echo "Triggering system switcher..." >&2
-        set -e
         id=$(ssh -o BatchMode=yes "$HOST" "${switch}/bin/switch" start "${system}")
-        set +e
 
         echo "Trying to confirm success..." >&2
         prevstatus="unknown"
@@ -96,8 +92,10 @@ let
           # defaultGateway is removed, the previous entry is still persisted on
           # a rebuild switch, even though with a reboot it wouldn't. Maybe use
           # the more modern and declarative networkd to get around this
-          status=$(timeout 5 ssh -o ControlPath=none -o BatchMode=yes "$HOST" "${switch}/bin/switch" active "$id")
+          set +e
+          status=$(timeout --foreground 5 ssh -o ControlPath=none -o BatchMode=yes "$HOST" "${switch}/bin/switch" active "$id")
           active=$?
+          set -e
           sleep 1
         done
 
@@ -124,6 +122,14 @@ let
       pkgs.writeScriptBin "deploy-${name}" (''
         #!${pkgs.runtimeShell}
 
+        set -euo pipefail
+
+        # Kill all child processes when interrupting/exiting
+        trap exit INT TERM
+        trap 'ps -s $$ -o pid= | xargs -r -n1 kill' EXIT
+        # Be sure to use --foreground for all timeouts, therwise a Ctrl-C won't stop them!
+        # See https://unix.stackexchange.com/a/233685/214651
+
         # Prefix all output with host name
         # From https://unix.stackexchange.com/a/440439/214651
         exec > >(sed "s/^/[${name}] /")
@@ -136,8 +142,9 @@ let
 
         echo "Connecting to host..." >&2
 
-        OLDSYSTEM=$(timeout 5 ssh -o BatchMode=yes "$HOST" realpath /run/current-system)
-        if [ $? -ne 0 ]; then
+        if ! OLDSYSTEM=$(timeout --foreground 5 \
+            ssh -o ControlPath=none -o BatchMode=yes "$HOST" realpath /run/current-system\
+          ); then
           echo "Unable to connect to host!" >&2
           exit 1
         fi
