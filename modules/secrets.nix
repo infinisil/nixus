@@ -98,14 +98,17 @@ in {
         in {
 
         # We can't use tmpfiles for this because we only know what secrets are included at build-time
+        # TODO: Use deploy script for this instead, because activation scripts are retained and can't be updated later
         configuration.system.activationScripts.secret-owners = lib.stringAfter [ "users" "groups" ] ''
-          while read -r json; do
-            name=$(echo "$json" | ${pkgs.jq}/bin/jq -r '.name')
-            user=$(echo "$json" | ${pkgs.jq}/bin/jq -r '.user')
-            chown -v "$user": "${keyDirectory}/$name"
-          done < /run/included-secrets
+          if [ -f /run/included-secrets ]; then
+            while read -r json; do
+              name=$(echo "$json" | ${pkgs.jq}/bin/jq -r '.name')
+              user=$(echo "$json" | ${pkgs.jq}/bin/jq -r '.user')
+              chown -v "$user": "${keyDirectory}/$name"
+            done < /run/included-secrets
 
-          rm /run/included-secrets
+            rm /run/included-secrets
+          fi
         '';
 
         deployScripts.secrets = lib.dag.entryBefore ["switch"] ''
