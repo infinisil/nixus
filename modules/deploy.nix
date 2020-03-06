@@ -76,7 +76,12 @@ let
       copy-closure = lib.dag.entryBefore ["switch"] ''
         echo "Copying closure to host..." >&2
         # TOOD: Prevent garbage collection until the end of the deploy
-        nix-copy-closure ${lib.optionalString (!config.hasFastConnection) "-s"} --to "$HOST" ${lib.escapeShellArgs config.closurePaths}
+        tries=3
+        while [ "$tries" -ne 0 ] &&
+          ! NIX_SSH_OPTS="-o ServerAliveInterval=15" nix-copy-closure ${lib.optionalString (!config.hasFastConnection) "-s"} --to "$HOST" ${lib.escapeShellArgs config.closurePaths}; do
+          tries=$(( $tries - 1 ))
+          echo "Failed to copy closure, $tries tries left"
+        done
       '';
 
       switch = lib.dag.entryAnywhere ''
