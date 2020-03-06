@@ -27,3 +27,5 @@ Some other features I'd like to have, but not thought out as well:
 - Non-persistent (and persistent?) secret management
 - Health checks
 - Automatically take care of running nixos-generate-config, so it doesn't have to be called manually which could be forgotten
+
+- Copy the Nix from the target host to localhost and use that to communicate to the daemon, such that there's no version mismatch
