@@ -1,8 +1,52 @@
 { lib, pkgs, config, options, ... }:
 let
   inherit (lib) types;
+  /*
+  Todo:
+  - Create a "secret archive" as part of the deployment preparation. This materializes all secrets and can later be used for deployment
+  - Can also be used for sending secrets when a machine starts up (for non-persistent keys)
+  - Store on a tmpfs/ramfs
+  - Once created, it can later be used
+
+  */
+
+  /*
+  Non-persistent keys:
+  - Use systemd's PathExists on a path unit to detect when a secret is available before starting services
+  - Store secrets in /run/secrets
+  */
+
+  /*
+  Persistent keys:
+  -
+
+  */
+
+  /*
+  Access permissions:
+  - Secrets can either have a user or a group specified (by default both root), but not both. This indicates that the secret belongs to that user or that group
+  - Set up /run/nixoses-secrets/secrets/per-user/${username} containing all secrets for that user, readable by that user only (400)
+  - Set up /run/nixoses-secrets/secrets/per-group/${groupname} containing all secrets for that group, readable by that group only (040)
+  */
+
+  /*
+  Using a Nix store for storing (only persistent?) secrets?
+  - Would be nice because it gives atomic switches, GC, nix-copy-closure for free
+  - With -r on the store directory, nobody should be able to see which secrets are present
+    -> Actually, not needed, since secret names can be stored *within*
+  - By using user-specific Nix profiles you can control access to keys for users
+
+  Problems:
+  - Chroot messes up symlinks (-> use NIX_REMOTE=local?store=$NIX_STORE_DIR&state=$NIX_STATE_DIR&log=$NIX_LOG_DIR)
+  - Hard to get env vars right
+  - nix-env doesn't seem to want to install stuff in a chroot (with -p it works though)
+
+  Let's not do that
+  */
+
+
   # Ideas (inspiration nixops):
-  # - Add systemd units for each key
+  # - Systemd units for each key? Probably not necessary with the PathExists thing, but maybe it would be nicer
   # - persistent/non-persistent keys, send keys after reboot
 
   # Abstract where the secret is gotten from (different hosts, not only localhost, different commands, not just files)
@@ -18,10 +62,17 @@ let
         apply = indirectSecret name;
       };
       user = lib.mkOption {
-        type = types.str;
-        default = "root";
+        type = types.nullOr types.str;
+        default = null;
         description = ''
-          The owner of the file
+          Specifies that the secret belongs to this user and only this user can access it. Mutually exclusive with specifying a group.
+        '';
+      };
+      group = lib.mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = ''
+          Specifies that the secret belongs to this group and only this group can access it. Mutually exclusive with specifying a user.
         '';
       };
     };
