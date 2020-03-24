@@ -87,10 +87,16 @@ switch() {
   local code=$?
   if [ $code -eq 124 ]; then
     echo "Activation of $system timed out" >&2
+    return $code
   elif [ $code -ne 0 ]; then
-    echo "Activation of $system failed" >&2
+    if [ @ignoreFailingSystemdUnits@ -eq 1 ] && [ $code -eq 4 ]; then
+      echo "During activation of $system, some systemd units failed to activate" >&2
+      return 0
+    else
+      echo "Activation of $system failed" >&2
+      return $code
+    fi
   fi
-  return $code
 }
 
 fail() {

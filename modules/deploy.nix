@@ -5,7 +5,7 @@ let
   nodeOptions = ({ name, pkgs, config, ... }:
     let
       switch = pkgs.runCommandNoCC "switch" {
-        inherit (config) switchTimeout successTimeout;
+        inherit (config) switchTimeout successTimeout ignoreFailingSystemdUnits;
       } ''
         mkdir -p $out/bin
         substituteAll ${../scripts/switch} $out/bin/switch
@@ -38,6 +38,15 @@ let
         description = ''
           How many seconds remote hosts should wait for the system activation
           command to finish before considering it failed.
+        '';
+      };
+
+      ignoreFailingSystemdUnits = lib.mkOption {
+        type = types.bool;
+        default = false;
+        description = ''
+          Whether a system activation should be considered successful despite
+          failing systemd units.
         '';
       };
 
