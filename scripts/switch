@@ -89,7 +89,7 @@ switch() {
     echo "Activation of $system timed out" >&2
     return $code
   elif [ $code -ne 0 ]; then
-    if [ @ignoreFailingSystemdUnits@ -eq 1 ] && [ $code -eq 4 ]; then
+    if [ "@ignoreFailingSystemdUnits@" = 1 ] && [ $code -eq 4 ]; then
       echo "During activation of $system, some systemd units failed to activate" >&2
       return 0
     else
