@@ -60,6 +60,7 @@ let
               # TODO: Move these to not special args
               nodes = lib.mapAttrs (name: value: value.configuration) topconfig.nodes;
               inherit name baseModules;
+              modulesPath = config.nixpkgs + "/nixos/modules";
             };
             modules = baseModules ++ [ (pkgsModule config.nixpkgs) extraConfig ];
           };
