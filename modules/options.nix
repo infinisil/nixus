@@ -9,11 +9,19 @@ let
   };
 
   pkgsModule = nixpkgs: { lib, config, ... }: {
-    nixpkgs.system = lib.mkDefault builtins.currentSystem;
+    config.nixpkgs.system = lib.mkDefault builtins.currentSystem;
     # Not using nixpkgs.pkgs because that would apply the overlays again
-    _module.args.pkgs = lib.mkDefault (import nixpkgs {
+    config._module.args.pkgs = lib.mkDefault (import nixpkgs {
       inherit (config.nixpkgs) config overlays localSystem crossSystem;
     });
+
+    # Export the pkgs arg because we use it outside the module
+    # See https://github.com/NixOS/nixpkgs/pull/82751 why that's necessary
+    options._pkgs = lib.mkOption {
+      readOnly = true;
+      internal = true;
+      default = config._module.args.pkgs;
+    };
   };
 
   topconfig = config;
@@ -71,7 +79,7 @@ let
     };
 
     config = {
-      _module.args.pkgs = config.configuration._module.args.pkgs;
+      _module.args.pkgs = config.configuration._pkgs;
     };
   };
 
