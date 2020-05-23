@@ -1,4 +1,4 @@
-# NixOSes: Deployment tool for multiple NixOS systems
+# Nixus: Deployment tool for multiple NixOS systems
 
 This is a work-in-progress deployment tool I'm developing for myself and [Niteo](https://niteo.co/). Noteworthy features include:
 
@@ -9,6 +9,8 @@ This is a work-in-progress deployment tool I'm developing for myself and [Niteo]
   - The boot activation failing in any way
   - The system crashing during the deployment
 - The ability to write multi-host abstractions (to be documented)
+- Secret management
+- More coming..
 
 ## How to use it
 
