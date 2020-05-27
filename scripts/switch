@@ -23,6 +23,11 @@
 
 set -u
 
+# This script needs to be run as root
+if [[ "$EUID" -ne 0 ]]; then
+	exec sudo "$0" "$@"
+fi
+
 mkdir -p /var/lib/system-switcher
 chmod 770 /var/lib/system-switcher
 cd /var/lib/system-switcher

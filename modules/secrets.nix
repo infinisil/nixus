@@ -114,14 +114,14 @@ in {
         deployScripts.secrets = lib.dag.entryBefore ["switch"] ''
           echo "Copying secrets..." >&2
 
-          ssh "$HOST" mkdir -v -p -m 755 ${keyDirectory}
-          rsync "${includedSecrets}" "$HOST":/run/included-secrets
+          ssh "$HOST" sudo mkdir -v -p -m 755 ${keyDirectory}
+          rsync --rsync-path="sudo rsync" "${includedSecrets}" "$HOST":/run/included-secrets
 
           while read -r json; do
             name=$(echo "$json" | jq -r '.name')
             source=$(echo "$json" | jq -r '.source')
             echo "Copying secret '$name'" >&2
-            rsync --perms --chmod=440 "$source" "$HOST":${keyDirectory}/"$name"
+            rsync --perms --chmod=440 --rsync-path="sudo rsync" "$source" "$HOST":${keyDirectory}/"$name"
           done < ${includedSecrets}
         '';
 
@@ -137,8 +137,8 @@ in {
                 fi
               done
               echo "Removing secret '$secret'"
-              ssh "$HOST" rm "$secret"
-            done < <(ssh "$HOST" find ${keyDirectory} -type f -print0)
+              ssh "$HOST" sudo rm "$secret"
+            done < <(ssh "$HOST" sudo find ${keyDirectory} -type f -print0)
           fi
         '';
       };

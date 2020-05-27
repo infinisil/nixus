@@ -56,6 +56,9 @@ let
         example = "root@172.18.67.46";
         description = ''
           How to reach the host via ssh. Deploying is disabled if null.
+          The username must either be root, or a user that is allowed to do
+          passwordless sudo. If no username is given, the one that runs the
+          deploy script is used.
         '';
       };
 
