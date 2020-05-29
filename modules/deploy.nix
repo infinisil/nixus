@@ -141,6 +141,8 @@ let
 
         PATH=${lib.makeBinPath
           (with nixusPkgs; [
+            # Without bash being here deployments to localhost do not work. The
+            # reason for that is not yet known. Reported in #6.
             bash
             coreutils
             findutils
