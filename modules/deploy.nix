@@ -141,14 +141,17 @@ let
 
         PATH=${lib.makeBinPath
           (with nixusPkgs; [
-            procps
+            # Without bash being here deployments to localhost do not work. The
+            # reason for that is not yet known. Reported in #6.
+            bash
+            coreutils
             findutils
             gnused
-            coreutils
-            openssh
-            nix
-            rsync
             jq
+            nix
+            openssh
+            procps
+            rsync
           ])}
 
         set -euo pipefail
