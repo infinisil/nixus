@@ -142,14 +142,14 @@ let
         PATH=${lib.makeBinPath
           (with nixusPkgs; [
             bash
-            procps
+            coreutils
             findutils
             gnused
-            coreutils
-            openssh
-            nix
-            rsync
             jq
+            nix
+            openssh
+            procps
+            rsync
           ])}
 
         set -euo pipefail
