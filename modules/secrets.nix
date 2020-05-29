@@ -1,4 +1,4 @@
-{ lib, pkgs, config, options, ... }:
+{ lib, config, options, ... }:
 let
   inherit (lib) types;
   # Ideas (inspiration nixops):
@@ -11,11 +11,11 @@ let
   # Note: NixOS by default adds /run/keys as a ramfs with 750 permissions and group config.ids.gids.key
   keyDirectory = "/var/keys";
 
-  secretType = { name, ... }: {
+  secretType = pkgs: { name, ... }: {
     options = {
       file = lib.mkOption {
         type = types.path;
-        apply = indirectSecret name;
+        apply = indirectSecret pkgs name;
       };
       user = lib.mkOption {
         type = types.str;
@@ -28,7 +28,7 @@ let
   };
 
   # Takes a file path and turns it into a derivation
-  indirectSecret = name: file: pkgs.runCommandNoCC "secret-${name}" {
+  indirectSecret = pkgs: name: file: pkgs.runCommandNoCC "secret-${name}" {
     # To find out which file to copy. toString to not import the secret into
     # the store
     file = toString file;
@@ -44,7 +44,7 @@ let
   '';
 
   # Intersects the closure of a system with a set of secrets
-  requiredSecrets = { system, secrets }: pkgs.stdenv.mkDerivation {
+  requiredSecrets = pkgs: { system, secrets }: pkgs.stdenv.mkDerivation {
     name = "required-secrets";
 
     __structuredAttrs = true;
@@ -77,12 +77,12 @@ let
 in {
 
   options.defaults = lib.mkOption {
-    type = types.submodule ({ config, ... }: {
+    type = types.submodule ({ config, pkgs, ... }: {
       options.configuration = lib.mkOption {
         type = types.submoduleWith {
           modules = [{
             options.secrets = lib.mkOption {
-              type = types.attrsOf (types.submodule secretType);
+              type = types.attrsOf (types.submodule (secretType pkgs));
               default = {};
             };
           }];
@@ -91,7 +91,7 @@ in {
 
       config =
         let
-          includedSecrets = requiredSecrets {
+          includedSecrets = requiredSecrets pkgs {
             system = config.configuration.system.build.toplevel;
             secrets = config.configuration.secrets;
           };

@@ -1,7 +1,5 @@
 { options, config, lib, ... }:
 let
-  # TODO: How to make this pure?
-  pkgs = import <nixpkgs> {};
   inherit (lib) types;
 
   extraConfig = { lib, ... }: {

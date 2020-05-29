@@ -1,4 +1,4 @@
-{ lib, config, ... }:
+{ nixusPkgs, lib, config, ... }:
 let
   inherit (lib) types;
 
@@ -136,19 +136,20 @@ let
       let
         sortedScripts = (lib.dag.topoSort config.deployScripts).result or (throw "Cycle in DAG for deployScripts");
       in
-      pkgs.writeScriptBin "deploy-${name}" (''
-        #!${pkgs.runtimeShell}
+      nixusPkgs.writeScriptBin "deploy-${name}" (''
+        #!${nixusPkgs.runtimeShell}
 
-        PATH=${lib.makeBinPath (with pkgs; [
-          procps
-          findutils
-          gnused
-          coreutils
-          openssh
-          nix
-          rsync
-          jq
-        ])}
+        PATH=${lib.makeBinPath
+          (with nixusPkgs; [
+            procps
+            findutils
+            gnused
+            coreutils
+            openssh
+            nix
+            rsync
+            jq
+          ])}
 
         set -euo pipefail
 
@@ -206,14 +207,9 @@ in {
 
   # TODO: What about requiring either all nodes to succeed or all get rolled back?
   config.deployScript =
-    let
-      pkgs = import (import ../nixpkgs.nix) {
-        config = {};
-        overlays = [];
-      };
-      # TODO: Handle signals to kill the async command
-    in pkgs.writeScript "deploy" ''
-      #!${pkgs.runtimeShell}
+    # TODO: Handle signals to kill the async command
+    nixusPkgs.writeScript "deploy" ''
+      #!${nixusPkgs.runtimeShell}
       ${lib.concatMapStrings (node: lib.optionalString node.enabled ''
 
         ${node.combinedDeployScript}/bin/deploy-* &
