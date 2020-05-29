@@ -141,6 +141,7 @@ let
 
         PATH=${lib.makeBinPath
           (with nixusPkgs; [
+            bash
             procps
             findutils
             gnused
