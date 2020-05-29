@@ -1,7 +1,7 @@
 conf: let
   nixpkgs = import ./nixpkgs.nix;
 
-  pkgs = import nixpkgs {
+  nixusPkgs = import nixpkgs {
     config = {};
     overlays = [
       (self: super: {
@@ -10,13 +10,14 @@ conf: let
     ];
   };
 
-  result = pkgs.lib.evalModules {
+  result = nixusPkgs.lib.evalModules {
     modules = [
       modules/options.nix
       modules/deploy.nix
       modules/secrets.nix
       conf
-      { _module.args.pkgs = pkgs; }
+      # Not naming it pkgs to avoid confusion and trouble for overriding scopes
+      { _module.args.nixusPkgs = nixusPkgs; }
     ];
   };
 in result.config.deployScript // result
