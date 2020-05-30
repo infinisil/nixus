@@ -20,4 +20,4 @@ conf: let
       { _module.args.nixusPkgs = nixusPkgs; }
     ];
   };
-in result.config.deployScript // result
+in result.config.deployScript // result // nixusPkgs.lib.mapAttrs (n: v: v.combinedDeployScript) result.config.nodes
