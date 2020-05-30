@@ -122,7 +122,8 @@ let
             ;;
           "failure")
             echo "Failed to activate new system! Rolled back to previous one" >&2
-            echo "See /var/lib/system-switcher/system-$id/log for logs" >&2
+            echo "Run the following command to see the logs for the switch:" >&2
+            echo "ssh ''${HOST@Q} sudo cat /var/lib/system-switcher/system-$id/log" >&2
             # TODO: Try to better show what failed
             ;;
           *)
