@@ -58,7 +58,7 @@ switch-start() {
   echo unknown > current/status
   echo 1 > current/active
 
-  nohup "$0" run 2>"$current/log" >/dev/null &
+  nohup "$0" run >>"$current/log" 2>&1 &
 
   echo "$id"
 }
