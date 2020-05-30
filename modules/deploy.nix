@@ -14,12 +14,12 @@ let
       system = config.configuration.system.build.toplevel;
     in {
     options = {
-      deployScripts = lib.mkOption {
+      deployScriptPhases = lib.mkOption {
         type = types.dagOf types.lines;
         default = {};
       };
 
-      combinedDeployScript = lib.mkOption {
+      deployScript = lib.mkOption {
         type = types.package;
       };
 
@@ -84,7 +84,7 @@ let
 
     config.closurePaths = [ system switch ];
 
-    config.deployScripts = {
+    config.deployScriptPhases = {
       copy-closure = lib.dag.entryBefore ["switch"] ''
         echo "Copying closure to host..." >&2
         # TOOD: Prevent garbage collection until the end of the deploy
@@ -133,13 +133,11 @@ let
       '';
     };
 
-    config.combinedDeployScript =
+    config.deployScript =
       let
-        sortedScripts = (lib.dag.topoSort config.deployScripts).result or (throw "Cycle in DAG for deployScripts");
+        sortedScripts = (lib.dag.topoSort config.deployScriptPhases).result or (throw "Cycle in DAG for deployScriptPhases");
       in
-      nixusPkgs.writeScriptBin "deploy-${name}" (''
-        #!${nixusPkgs.runtimeShell}
-
+      nixusPkgs.writeShellScript "deploy-${name}" (''
         PATH=${lib.makeBinPath
           (with nixusPkgs; [
             # Without bash being here deployments to localhost do not work. The
@@ -216,7 +214,7 @@ in {
       #!${nixusPkgs.runtimeShell}
       ${lib.concatMapStrings (node: lib.optionalString node.enabled ''
 
-        ${node.combinedDeployScript}/bin/deploy-* &
+        ${node.deployScript} &
       '') (lib.attrValues config.nodes)}
       wait
     '';

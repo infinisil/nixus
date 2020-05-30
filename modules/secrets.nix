@@ -111,7 +111,7 @@ in {
           fi
         '';
 
-        deployScripts.secrets = lib.dag.entryBefore ["switch"] ''
+        deployScriptPhases.secrets = lib.dag.entryBefore ["switch"] ''
           echo "Copying secrets..." >&2
 
           ssh "$HOST" sudo mkdir -v -p -m 755 ${keyDirectory}
@@ -125,7 +125,7 @@ in {
           done < ${includedSecrets}
         '';
 
-        deployScripts.remove-secrets = lib.dag.entryAfter ["switch"] ''
+        deployScriptPhases.remove-secrets = lib.dag.entryAfter ["switch"] ''
           if [ "$status" = success ]; then
             mapfile -t requiredNames < <(jq -r '.name' ${includedSecrets})
 
