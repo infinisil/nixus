@@ -2,6 +2,8 @@
   description = "Deployment tool for multiple NixOS systems";
 
   edition = 201909;
+  
+  inputs.nixpkgs.url = "github:nixos/nixpkgs/3320a06049fc259e87a2bd98f4cd42f15f746b96";
 
   outputs = { self, nixpkgs }: {
     lib.nixus = conf: let
