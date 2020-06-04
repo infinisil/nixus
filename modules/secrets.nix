@@ -23,6 +23,7 @@ let
         description = ''
           The owning user of the secret. If this is set, only that user can
           access the secret. Mutually exclusive with setting a group.
+          By default, root is the owning user.
         '';
       };
       group = lib.mkOption {
@@ -31,6 +32,7 @@ let
         description = ''
           The owning group of the secret. If this is set, only that group can
           access the secret. Mutually exclusive with setting a user.
+          By default, root is the owning user.
         '';
       };
     };
@@ -50,13 +52,13 @@ let
     # contains null bytes
   } (
     let
-      validSecret = (config.user == null) != (config.group == null);
-      subdir = if config.user != null
-        then "per-user/${config.user}"
+      validSecret = (config.user == null) || (config.group == null);
+      subdir = if config.group == null
+        then "per-user/${if config.user == null then "root" else config.user}"
         else "per-group/${config.group}";
       target = if validSecret
         then "${keyDirectory}/active/${subdir}/${name}"
-        else throw "nixus: secret.${name} needs to either have a user or a group set, but not both";
+        else throw "nixus: secret.${name} can't have both a user and a group set";
     in ''
       ln -s ${lib.escapeShellArg target} "$out"
     '');
@@ -74,7 +76,8 @@ let
       path = value.file;
       source = value.file.file;
       hash = value.file.secretHash;
-      inherit (value) user group;
+      user = if value.group == null && value.user == null then "root" else value.user;
+      inherit (value) group;
     }) secrets;
 
     PATH = lib.makeBinPath [pkgs.buildPackages.jq];
