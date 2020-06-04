@@ -7,15 +7,11 @@ let
 
   # Abstract where the secret is gotten from (different hosts, not only localhost, different commands, not just files)
 
-  # Note: This is persisted
-  # Note: NixOS by default adds /run/keys as a ramfs with 750 permissions and group config.ids.gids.key
-  keyDirectory = "/var/lib/nixus-secrets";
-
-  secretType = pkgs: { name, config, ... }: {
+  secretType = pkgs: baseDir: { name, config, ... }: {
     options = {
       file = lib.mkOption {
         type = types.path;
-        apply = indirectSecret pkgs config name;
+        apply = indirectSecret pkgs baseDir config name;
       };
       user = lib.mkOption {
         type = types.nullOr types.str;
@@ -39,7 +35,7 @@ let
   };
 
   # Takes a file path and turns it into a derivation
-  indirectSecret = pkgs: config: name: file: pkgs.runCommandNoCC "secret-${name}" {
+  indirectSecret = pkgs: baseDir: config: name: file: pkgs.runCommandNoCC "secret-${name}" {
     # To find out which file to copy. toString to not import the secret into
     # the store
     file = toString file;
@@ -57,7 +53,7 @@ let
         then "per-user/${if config.user == null then "root" else config.user}"
         else "per-group/${config.group}";
       target = if validSecret
-        then "${keyDirectory}/active/${subdir}/${name}"
+        then "${baseDir}/active/${subdir}/${name}"
         else throw "nixus: secret.${name} can't have both a user and a group set";
     in ''
       ln -s ${lib.escapeShellArg target} "$out"
@@ -101,12 +97,22 @@ in {
     type = types.submodule ({ config, pkgs, ... }: {
       options.configuration = lib.mkOption {
         type = types.submoduleWith {
-          modules = [{
-            options.secrets = lib.mkOption {
-              type = types.attrsOf (types.submodule (secretType pkgs));
-              default = {};
+          modules = [({ config, ... }: {
+            options.secrets = {
+              baseDirectory = lib.mkOption {
+                type = types.path;
+                default = "/var/lib/nixus-secrets";
+                description = ''
+                  The persistent directory on the target host to store secrets in.
+                '';
+              };
+
+              files = lib.mkOption {
+                type = types.attrsOf (types.submodule (secretType pkgs config.secrets.baseDirectory));
+                default = {};
+              };
             };
-          }];
+          })];
         };
       };
 
@@ -117,8 +123,10 @@ in {
         let
           includedSecrets = requiredSecrets pkgs {
             system = config.configuration.system.build.toplevel;
-            secrets = config.configuration.secrets;
+            secrets = config.configuration.secrets.files;
           };
+
+          baseDir = config.configuration.secrets.baseDirectory;
 
         in {
 
@@ -150,7 +158,7 @@ in {
         # And this can't be done with tmpfiles.d because that would be part of the system closure, which is evaluated to even know which secrets to include
         # FIXME: This only works with rollbacks because nixus rolls back by essentially redeploying. So this will probably not work with e.g. grub rollbacks
         configuration.system.activationScripts.activate-secrets = lib.stringAfter [ "users" "groups" ] ''
-          if [[ -d ${keyDirectory}/pending ]]; then
+          if [[ -d ${baseDir}/pending ]]; then
             while read -r json; do
               name=$(echo "$json" | ${pkgs.jq}/bin/jq -r '.name')
               user=$(echo "$json" | ${pkgs.jq}/bin/jq -r '.user')
@@ -158,27 +166,27 @@ in {
 
               # If this is a per-user secret
               if [[ "$user" != null ]]; then
-                chown -v -R "$user":root "${keyDirectory}/pending/per-user/$user"
+                chown -v -R "$user":root "${baseDir}/pending/per-user/$user"
               else
-                chown -v -R root:"$group" "${keyDirectory}/pending/per-group/$group"
+                chown -v -R root:"$group" "${baseDir}/pending/per-group/$group"
               fi
-            done < ${keyDirectory}/pending/included-secrets
+            done < ${baseDir}/pending/included-secrets
 
             # TOOD: Do this atomically
-            if [[ -d ${keyDirectory}/active ]]; then
-              rm -r ${keyDirectory}/active
+            if [[ -d ${baseDir}/active ]]; then
+              rm -r ${baseDir}/active
             fi
-            mv -v ${keyDirectory}/pending ${keyDirectory}/active
+            mv -v ${baseDir}/pending ${baseDir}/active
           fi
         '';
 
         deployScriptPhases.secrets = lib.dag.entryBefore ["switch"] ''
           echo "Copying secrets..." >&2
 
-          ssh "$HOST" sudo mkdir -p -m 755 ${keyDirectory}/pending/per-{user,group}
+          ssh "$HOST" sudo mkdir -p -m 755 ${baseDir}/pending/per-{user,group}
           # TODO: I don't think this works if rsync isn't on the remote's shell.
           # We really just need a single binary we can execute on the remote, like the switch script
-          rsync --perms --chmod=750 --chown "root:root" --rsync-path="set -o noglob; sudo rsync" "${includedSecrets}" "$HOST:${keyDirectory}/pending/included-secrets"
+          rsync --perms --chmod=750 --chown "root:root" --rsync-path="set -o noglob; sudo rsync" "${includedSecrets}" "$HOST:${baseDir}/pending/included-secrets"
 
           while read -r json; do
             name=$(echo "$json" | jq -r '.name')
@@ -191,11 +199,11 @@ in {
             # If this is a per-user secret
             if [[ "$user" != null ]]; then
               # The -n is very important for ssh to not swallow stdin!
-              ssh -n "$HOST" sudo mkdir -p -m 500 "${keyDirectory}/pending/per-user/$user"
-              rsync --perms --chmod=400 --rsync-path="sudo rsync" "$source" "$HOST:${keyDirectory}/pending/per-user/$user/$name"
+              ssh -n "$HOST" sudo mkdir -p -m 500 "${baseDir}/pending/per-user/$user"
+              rsync --perms --chmod=400 --rsync-path="sudo rsync" "$source" "$HOST:${baseDir}/pending/per-user/$user/$name"
             else
-              ssh -n "$HOST" sudo mkdir -p -m 050 "${keyDirectory}/pending/per-group/$group"
-              rsync --perms --chmod=040 --rsync-path="sudo rsync" "$source" "$HOST:${keyDirectory}/pending/per-group/$group/$name"
+              ssh -n "$HOST" sudo mkdir -p -m 050 "${baseDir}/pending/per-group/$group"
+              rsync --perms --chmod=040 --rsync-path="sudo rsync" "$source" "$HOST:${baseDir}/pending/per-group/$group/$name"
             fi
           done < "${includedSecrets}"
 
