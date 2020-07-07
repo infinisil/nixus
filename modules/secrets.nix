@@ -135,7 +135,7 @@ in {
         Secret structure:
         /var/lib/nixus-secrets/active  root:root    0755   # Directory containing all active persisted secrets and data needed to support it
           |
-          + included-secrets           root:root    0750   # A file containing line-delimited json values describing all present secrets
+          + included-secrets           root:root    0440   # A file containing line-delimited json values describing all present secrets
           |
           + per-user                   root:root    0755   # A directory containing all secrets owned by users
           | |
@@ -186,7 +186,7 @@ in {
           ssh "$HOST" sudo mkdir -p -m 755 ${baseDir}/pending/per-{user,group}
           # TODO: I don't think this works if rsync isn't on the remote's shell.
           # We really just need a single binary we can execute on the remote, like the switch script
-          rsync --perms --chmod=750 --chown "root:root" --rsync-path="set -o noglob; sudo rsync" "${includedSecrets}" "$HOST:${baseDir}/pending/included-secrets"
+          rsync --perms --chmod=440 --rsync-path="sudo rsync" "${includedSecrets}" "$HOST:${baseDir}/pending/included-secrets"
 
           while read -r json; do
             name=$(echo "$json" | jq -r '.name')
