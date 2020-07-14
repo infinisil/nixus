@@ -137,6 +137,11 @@ switch-run() {
       echo "Success confirmation received, activating system" >&2
       if switch "$newsystem" boot; then
         nix-env -p /nix/var/nix/profiles/system --set "$newsystem"
+        # We need to run the boot switch again for the new system to be
+        # available in the boot loader since it uses the system profiles to
+        # generate that
+        # TODO: I feel like there should be a better way
+        switch "$newsystem" boot
         echo success > current/status
         echo 0 > current/active
         rm current
