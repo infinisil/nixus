@@ -157,7 +157,7 @@ let
 
         # Kill all child processes when interrupting/exiting
         trap exit INT TERM
-        trap 'ps -s $$ -o pid= | xargs -r -n1 kill' EXIT
+        trap 'for pid in $(jobs -p) ; do kill -- -$pid ; done' EXIT
         # Be sure to use --foreground for all timeouts, therwise a Ctrl-C won't stop them!
         # See https://unix.stackexchange.com/a/233685/214651
 
