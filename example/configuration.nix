@@ -26,9 +26,9 @@
 
   users.users.bob.group = "users";
 
-  secrets.foo.file = ./secret;
-  secrets.foo.user = "bob";
-  environment.etc.foo.source = config.secrets.foo.file;
+  secrets.files.foo.file = ./secret;
+  secrets.files.foo.user = "bob";
+  environment.etc.foo.source = config.secrets.files.foo.file;
 
   system.stateVersion = "19.09";
 }
