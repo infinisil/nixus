@@ -46,11 +46,14 @@ let
   );
 
 
-  userConfig = host: lib.genAttrs hostUsers.${host} (user: {
-    openssh.authorizedKeys.keys = map
-      (conn: config.ssh.access.${conn.from.host}.users.${conn.from.user}.publicKey)
-      (lib.filter (conn: conn.to.host == host && conn.to.user == user) connections);
-  });
+  userConfig = host: lib.genAttrs hostUsers.${host} (user:
+    let
+      keys = map
+        (conn: config.ssh.access.${conn.from.host}.users.${conn.from.user}.publicKey)
+        (lib.filter (conn: conn.to.host == host && conn.to.user == user) connections);
+    in {
+      openssh.authorizedKeys.keys = lib.mkIf (keys != []) keys;
+    });
 
   knownHostsConfig = host: lib.genAttrs (map (conn: conn.to.host) (lib.filter (conn: conn.from.host == host) connections)) (toHost: {
     hostNames = [ toHost ] ++ config.ssh.access.${toHost}.hostNames ++ lib.optional (host == toHost) "localhost";
