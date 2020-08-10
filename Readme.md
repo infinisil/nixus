@@ -1,14 +1,16 @@
-# Nixus: Deployment tool for multiple NixOS systems
+# Nixus: Experimental deployment tool for multiple NixOS systems
 
 This is a work-in-progress deployment tool I'm developing for myself and [Niteo](https://niteo.co/). Noteworthy features include:
 
-- Auto-rollback if the machine can't be reached anymore, protecting against a number of configuration mistakes such as
+- Auto-rollback if the machine can't be reached via SSH anymore, protecting against a number of configuration mistakes such as
   - Messing up the network config
   - Removing your SSH key from the authorized keys
   - The activation script failing in any way
   - The boot activation failing in any way
   - The system crashing during the deployment
-- The ability to write multi-host abstractions (to be documented)
+- Multi-host abstraction modules, such as:
+  - An [SSH access module](./modules/ssh.nix), allowing you to configure secure SSH access between machines
+  - More to follow..
 - Secret management
 - More coming..
 
