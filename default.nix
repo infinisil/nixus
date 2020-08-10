@@ -15,6 +15,7 @@ conf: let
       modules/options.nix
       modules/deploy.nix
       modules/secrets.nix
+      modules/ssh.nix
       conf
       # Not naming it pkgs to avoid confusion and trouble for overriding scopes
       { _module.args.nixusPkgs = nixusPkgs; }
