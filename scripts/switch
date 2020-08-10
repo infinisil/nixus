@@ -116,9 +116,12 @@ fail() {
   rm current
 
   if [ "$code" -ne 0 ]; then
+    echo "Unsuccessfully rolled back without rebooting" >&2
+    echo "Rebooting to rollback.." >&2
     reboot
   fi
 
+  echo "Successfully rolled back without rebooting" >&2
   exit 1
 }
 
