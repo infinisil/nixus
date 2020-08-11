@@ -1,4 +1,4 @@
-conf: let
+args: conf: let
   nixpkgs = import ./nixpkgs.nix;
 
   nixusPkgs = import nixpkgs {
