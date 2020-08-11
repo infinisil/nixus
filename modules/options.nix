@@ -2,7 +2,7 @@
 let
   inherit (lib) types;
 
-  extraConfig = { lib, ... }: {
+  extraConfig = { lib, config, ... }: {
     # By default the sshd service doesn't stop when changed so you don't lose connection to it when misconfigured
     # But in Nixus we want to detect a misconfiguration since we can rollback in that case
     systemd.services.${if config.services.openssh.startWhenNeeded then "sshd@" else "sshd"}.stopIfChanged = lib.mkForce true;
