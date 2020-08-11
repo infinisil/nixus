@@ -1,4 +1,4 @@
-conf: let
+args: conf: let
   nixpkgs = import ./nixpkgs.nix;
 
   nixusPkgs = import nixpkgs {
@@ -8,6 +8,7 @@ conf: let
         lib = super.lib.extend (import ./dag.nix);
       })
     ];
+    system = args.deploySystem or builtins.currentSystem;
   };
 
   result = nixusPkgs.lib.evalModules {
