@@ -1,4 +1,4 @@
-{ nixusPkgs, lib, config, ... }:
+{ nixus, lib, config, ... }:
 let
   inherit (lib) types;
 
@@ -135,9 +135,9 @@ let
       let
         sortedScripts = (lib.dag.topoSort config.deployScriptPhases).result or (throw "Cycle in DAG for deployScriptPhases");
       in
-      nixusPkgs.writeShellScript "deploy-${name}" (''
+      nixus.pkgs.writeShellScript "deploy-${name}" (''
         PATH=${lib.makeBinPath
-          (with nixusPkgs; [
+          (with nixus.pkgs; [
             # Without bash being here deployments to localhost do not work. The
             # reason for that is not yet known. Reported in #6.
             bash
@@ -208,8 +208,8 @@ in {
   # TODO: What about requiring either all nodes to succeed or all get rolled back?
   config.deployScript =
     # TODO: Handle signals to kill the async command
-    nixusPkgs.writeScript "deploy" ''
-      #!${nixusPkgs.runtimeShell}
+    nixus.pkgs.writeScript "deploy" ''
+      #!${nixus.pkgs.runtimeShell}
       ${lib.concatMapStrings (node: lib.optionalString node.enabled ''
 
         ${node.deployScript} &

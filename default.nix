@@ -1,14 +1,22 @@
-args: conf: let
+nixusArgs: conf: let
   nixpkgs = import ./nixpkgs.nix;
+
+  extendLib = lib:
+    let
+      withDag = lib.extend (import ./dag.nix);
+      final = if nixusArgs ? libOverlay
+        then withDag.extend nixusArgs.libOverlay
+        else withDag;
+    in final;
 
   nixusPkgs = import nixpkgs {
     config = {};
     overlays = [
       (self: super: {
-        lib = super.lib.extend (import ./dag.nix);
+        lib = extendLib super.lib;
       })
     ];
-    system = args.deploySystem or builtins.currentSystem;
+    system = nixusArgs.deploySystem or builtins.currentSystem;
   };
 
   result = nixusPkgs.lib.evalModules {
@@ -19,7 +27,12 @@ args: conf: let
       modules/ssh.nix
       conf
       # Not naming it pkgs to avoid confusion and trouble for overriding scopes
-      { _module.args.nixusPkgs = nixusPkgs; }
+      {
+        _module.args.nixus = {
+          pkgs = nixusPkgs;
+          inherit extendLib;
+        };
+      }
     ];
   };
 in result.config.deployScript // result // nixusPkgs.lib.mapAttrs (n: v: v.deployScript) result.config.nodes

@@ -1,4 +1,4 @@
-{ nixusPkgs, options, config, lib, ... }:
+{ nixus, options, config, lib, ... }:
 let
   inherit (lib) types;
 
@@ -11,7 +11,7 @@ let
   };
 
   pkgsModule = nixpkgs: { lib, config, ... }: {
-    config.nixpkgs.system = lib.mkDefault nixusPkgs.system;
+    config.nixpkgs.system = lib.mkDefault nixus.pkgs.system;
     # Not using nixpkgs.pkgs because that would apply the overlays again
     config._module.args.pkgs = lib.mkDefault (import nixpkgs {
       inherit (config.nixpkgs) config overlays localSystem crossSystem;
@@ -58,7 +58,7 @@ let
           let baseModules = import (config.nixpkgs + "/nixos/modules/module-list.nix");
           in types.submoduleWith {
             specialArgs = {
-              lib = (import (config.nixpkgs + "/lib")).extend (import ../dag.nix);
+              lib = nixus.extendLib (import (config.nixpkgs + "/lib"));
               # TODO: Move these to not special args
               nodes = lib.mapAttrs (name: value: value.configuration) topconfig.nodes;
               inherit name baseModules;
