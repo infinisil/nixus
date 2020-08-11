@@ -8,6 +8,7 @@ args: conf: let
         lib = super.lib.extend (import ./dag.nix);
       })
     ];
+    system = args.deploySystem or builtins.currentSystem;
   };
 
   result = nixusPkgs.lib.evalModules {

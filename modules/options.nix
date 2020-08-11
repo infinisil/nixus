@@ -1,4 +1,4 @@
-{ options, config, lib, ... }:
+{ nixusPkgs, options, config, lib, ... }:
 let
   inherit (lib) types;
 
@@ -7,7 +7,7 @@ let
   };
 
   pkgsModule = nixpkgs: { lib, config, ... }: {
-    config.nixpkgs.system = lib.mkDefault builtins.currentSystem;
+    config.nixpkgs.system = lib.mkDefault nixusPkgs.system;
     # Not using nixpkgs.pkgs because that would apply the overlays again
     config._module.args.pkgs = lib.mkDefault (import nixpkgs {
       inherit (config.nixpkgs) config overlays localSystem crossSystem;
