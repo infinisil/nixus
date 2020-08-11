@@ -98,11 +98,9 @@ let
 
       switch = lib.dag.entryAnywhere ''
         echo "Triggering system switcher..." >&2
-        id=$(ssh -o BatchMode=yes "$HOST" "${switch}/bin/switch" start "${system}")
+        id=$(ssh -o BatchMode=yes "$HOST" exec "${switch}/bin/switch" start "${system}")
 
         echo "Trying to confirm success..." >&2
-        prevstatus="unknown"
-        prevactive=0
         active=1
         while [ "$active" != 0 ]; do
           # TODO: Because of the imperative network-setup script, when e.g. the
@@ -110,7 +108,7 @@ let
           # a rebuild switch, even though with a reboot it wouldn't. Maybe use
           # the more modern and declarative networkd to get around this
           set +e
-          status=$(timeout --foreground 5 ssh -o ControlPath=none -o BatchMode=yes "$HOST" "${switch}/bin/switch" active "$id")
+          status=$(timeout --foreground 5 ssh -o ControlPath=none -o BatchMode=yes "$HOST" exec "${switch}/bin/switch" active "$id")
           active=$?
           set -e
           sleep 1
@@ -127,7 +125,7 @@ let
             # TODO: Try to better show what failed
             ;;
           *)
-            echo "This shouldn't occur!" >&2
+            echo "This shouldn't occur, the status is $status!" >&2
             ;;
         esac
       '';

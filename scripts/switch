@@ -66,7 +66,6 @@ switch-start() {
 switch-active() {
   local id=$1
   cat "system-$id/status"
-  [ ! -p "system-$id/confirm" ]
   local active=$(cat "system-$id/active")
   # Could also wait for updates after the ping
   if [ -p "system-$id/confirm" ]; then
