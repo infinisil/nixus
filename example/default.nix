@@ -1,4 +1,4 @@
-import ../. ({ config, ... }: {
+import ../. {} ({ config, ... }: {
 
   defaults = { name, ... }: {
     configuration = { lib, ... }: {
