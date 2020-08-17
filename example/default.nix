@@ -7,8 +7,8 @@ import ../. {} ({ config, ... }: {
 
     # Which nixpkgs version we want to use for this node
     nixpkgs = fetchTarball {
-      url = "https://github.com/NixOS/nixpkgs/tarball/a06925d8c608d7ba1d4297dc996c187c37c6b7e9";
-      sha256 = "0xy6rimd300j5bdqmzizs6l71x1n06pfimbim1952fyjk8a3q4pr";
+      url = "https://github.com/NixOS/nixpkgs/tarball/16fc531784ac226fb268cc59ad573d2746c109c1";
+      sha256 = "0qw1jpdfih9y0dycslapzfp8bl4z7vfg9c7qz176wghwybm4sx0a";
     };
   };
 
