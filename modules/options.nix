@@ -79,6 +79,15 @@ let
         '';
       };
 
+      privilegeEscalationCommand = lib.mkOption {
+        type = types.listOf types.str;
+        default = [ "sudo" ];
+        example = lib.literalExample ''[ "doas" ]'';
+        description = ''
+          The command to use for privilege escalation.
+        '';
+      };
+
     };
 
     config = {

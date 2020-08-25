@@ -187,13 +187,14 @@ in {
             # Safe because we include pkgs.rsync in the remotes closure,
             # therefore ensuring it will be there
             rsync = builtins.unsafeDiscardStringContext "${pkgs.rsync}/bin/rsync";
+            privilegeEscalation = builtins.concatStringsSep " " config.privilegeEscalationCommand;
           in lib.dag.entryBefore ["switch"] ''
             echo "Copying secrets..." >&2
 
-            ssh "$HOST" sudo mkdir -p -m 755 ${baseDir}/pending/per-{user,group}
+            ssh "$HOST" ${privilegeEscalation} mkdir -p -m 755 ${baseDir}/pending/per-{user,group}
             # TODO: I don't think this works if rsync isn't on the remote's shell.
             # We really just need a single binary we can execute on the remote, like the switch script
-            rsync --perms --chmod=440 --rsync-path="sudo ${rsync}" "${includedSecrets}" "$HOST:${baseDir}/pending/included-secrets"
+            rsync --perms --chmod=440 --rsync-path="${privilegeEscalation} ${rsync}" "${includedSecrets}" "$HOST:${baseDir}/pending/included-secrets"
 
             while read -r json; do
               name=$(echo "$json" | jq -r '.name')
@@ -206,11 +207,11 @@ in {
               # If this is a per-user secret
               if [[ "$user" != null ]]; then
                 # The -n is very important for ssh to not swallow stdin!
-                ssh -n "$HOST" sudo mkdir -p -m 500 "${baseDir}/pending/per-user/$user"
-                rsync --perms --chmod=400 --rsync-path="sudo ${rsync}" "$source" "$HOST:${baseDir}/pending/per-user/$user/$name"
+                ssh -n "$HOST" ${privilegeEscalation} mkdir -p -m 500 "${baseDir}/pending/per-user/$user"
+                rsync --perms --chmod=400 --rsync-path="${privilegeEscalation} ${rsync}" "$source" "$HOST:${baseDir}/pending/per-user/$user/$name"
               else
-                ssh -n "$HOST" sudo mkdir -p -m 050 "${baseDir}/pending/per-group/$group"
-                rsync --perms --chmod=040 --rsync-path="sudo ${rsync}" "$source" "$HOST:${baseDir}/pending/per-group/$group/$name"
+                ssh -n "$HOST" ${privilegeEscalation} mkdir -p -m 050 "${baseDir}/pending/per-group/$group"
+                rsync --perms --chmod=040 --rsync-path="${privilegeEscalation} ${rsync}" "$source" "$HOST:${baseDir}/pending/per-group/$group/$name"
               fi
             done < "${includedSecrets}"
 

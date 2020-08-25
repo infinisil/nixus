@@ -25,7 +25,7 @@ set -u
 
 # This script needs to be run as root
 if [[ "$EUID" -ne 0 ]]; then
-	exec sudo "$0" "$@"
+	exec @privilegeEscalationCommand@ "$0" "$@"
 fi
 
 mkdir -p /var/lib/system-switcher
