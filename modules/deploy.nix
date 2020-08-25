@@ -5,7 +5,7 @@ let
   nodeOptions = ({ name, pkgs, config, ... }:
     let
       switch = pkgs.runCommandNoCC "switch" {
-        inherit (config) switchTimeout successTimeout ignoreFailingSystemdUnits;
+        inherit (config) switchTimeout successTimeout ignoreFailingSystemdUnits privilegeEscalationCommand;
       } ''
         mkdir -p $out/bin
         substituteAll ${../scripts/switch} $out/bin/switch
@@ -55,10 +55,10 @@ let
         type = lib.types.nullOr lib.types.str;
         example = "root@172.18.67.46";
         description = ''
-          How to reach the host via ssh. Deploying is disabled if null.
-          The username must either be root, or a user that is allowed to do
-          passwordless sudo. If no username is given, the one that runs the
-          deploy script is used.
+          How to reach the host via ssh. Deploying is disabled if null. The
+          username must either be root, or a user that is allowed to do
+          passwordless privilege escalation. If no username is given, the one
+          that runs the deploy script is used.
         '';
       };
 
@@ -96,7 +96,10 @@ let
         done
       '';
 
-      switch = lib.dag.entryAnywhere ''
+      switch =
+        let
+          privilegeEscalation = builtins.concatStringsSep " " config.privilegeEscalationCommand;
+        in lib.dag.entryAnywhere ''
         echo "Triggering system switcher..." >&2
         id=$(ssh -o BatchMode=yes "$HOST" exec "${switch}/bin/switch" start "${system}")
 
@@ -121,7 +124,7 @@ let
           "failure")
             echo "Failed to activate new system! Rolled back to previous one" >&2
             echo "Run the following command to see the logs for the switch:" >&2
-            echo "ssh ''${HOST@Q} sudo cat /var/lib/system-switcher/system-$id/log" >&2
+            echo "ssh ''${HOST@Q} ${privilegeEscalation} cat /var/lib/system-switcher/system-$id/log" >&2
             # TODO: Try to better show what failed
             ;;
           *)
