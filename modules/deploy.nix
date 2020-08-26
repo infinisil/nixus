@@ -148,11 +148,10 @@ let
             findutils
             gnused
             jq
-            nix
             openssh
             procps
             rsync
-          ])}
+          ])}''${PATH:+:$PATH}
 
         set -euo pipefail
 
