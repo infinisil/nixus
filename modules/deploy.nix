@@ -53,6 +53,7 @@ let
       # TODO: What about different ssh ports? Some access abstraction perhaps?
       host = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
+        default = name;
         example = "root@172.18.67.46";
         description = ''
           How to reach the host via ssh. Deploying is disabled if null. The
