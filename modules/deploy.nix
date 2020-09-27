@@ -6,6 +6,7 @@ let
     let
       switch = pkgs.runCommandNoCC "switch" {
         inherit (config) switchTimeout successTimeout ignoreFailingSystemdUnits privilegeEscalationCommand;
+        shell = pkgs.runtimeShell;
       } ''
         mkdir -p $out/bin
         substituteAll ${../scripts/switch} $out/bin/switch
