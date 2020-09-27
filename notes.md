@@ -20,6 +20,7 @@ Features I thought of putting in a deployment tool:
   - Same for root access to the local machine
   - To allow other people to do changes to machines, deploy an update to the machine that adds their ssh keys (or set up an SSH CA to give a group of people access at once)
   - Ideally have a NixOS module that easily allows doing this (TODO: What about ssh key generation?)
+  - Evaluate if [SPIFFE workload attestor](https://spiffe.io/docs/latest/spire/understand/concepts/) can procure (rolling) certificate generation and provide the trust network
 - Allow different nixpkgs versions for different network nodes
 
 Some other features I'd like to have, but not thought out as well:
