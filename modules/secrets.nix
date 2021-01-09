@@ -13,6 +13,7 @@ let
         type = types.path;
         apply = indirectSecret pkgs baseDir config name;
       };
+      # TODO: Ensure user and group exists at eval time
       user = lib.mkOption {
         type = types.nullOr types.str;
         default = null;
