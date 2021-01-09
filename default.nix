@@ -32,6 +32,7 @@ nixusArgs: conf: let
           pkgs = nixusPkgs;
           inherit extendLib;
         };
+        _module.args.pkgs = throw "You're trying to access the pkgs argument from a Nixus module, use the nixus argument instead and use nixus.pkgs from that.";
       }
     ];
   };
