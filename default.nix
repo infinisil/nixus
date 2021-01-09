@@ -3,11 +3,11 @@ nixusArgs: conf: let
 
   extendLib = lib:
     let
-      withDag = lib.extend (import ./dag.nix);
-      final = if nixusArgs ? libOverlay
-        then withDag.extend nixusArgs.libOverlay
-        else withDag;
-    in final;
+      libOverlays = [
+        (import ./dag.nix)
+      ] ++ lib.optional (nixusArgs ? libOverlay) nixusArgs.libOverlay;
+      libOverlay = lib.foldl' lib.composeExtensions (self: super: {}) libOverlays;
+    in lib.extend libOverlay;
 
   nixusPkgs = import nixpkgs {
     config = {};
