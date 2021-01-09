@@ -25,6 +25,7 @@ nixusArgs: conf: let
       modules/deploy.nix
       modules/secrets.nix
       modules/ssh.nix
+      modules/public-ip.nix
       conf
       # Not naming it pkgs to avoid confusion and trouble for overriding scopes
       {
