@@ -27,6 +27,7 @@ nixusArgs: conf: let
       modules/ssh.nix
       modules/public-ip.nix
       modules/dns.nix
+      modules/vpn
       conf
       # Not naming it pkgs to avoid confusion and trouble for overriding scopes
       {
