@@ -8,57 +8,34 @@ let
   A list of SSH connections that should be allowed as given by the ssh.access option
   */
   connections = lib.flatten (lib.mapAttrsToList (fromHost: fromHostValue:
-    lib.mapAttrsToList (fromUser: fromUserValue:
+    lib.mapAttrsToList (fromKey: fromUserValue:
       lib.mapAttrsToList (toHost: toHostValue:
         lib.mapAttrsToList (toUser: toUserValue:
           lib.optional toUserValue {
             from.host = fromHost;
-            from.user = fromUser;
+            from.key = fromKey;
             to.host = toHost;
             to.user = toUser;
           }
         ) toHostValue
       ) fromUserValue.hasAccessTo
-    ) fromHostValue.users
+    ) fromHostValue.keys
   ) config.ssh.access);
 
-  /*
-  hostUserPairs :: ListOf { host; user }
+  userConfig = lib.mapAttrs (host: hostConnections: {
+    configuration.users.users = lib.mapAttrs (user: userConnections: {
+      openssh.authorizedKeys.keys = lib.mkIf (userConnections != []) (map (conn:
+        config.ssh.access.${conn.from.host}.keys.${conn.from.key}.publicKey
+      ) userConnections);
+    }) (lib.groupBy (conn: conn.to.user) hostConnections);
+  }) (lib.groupBy (conn: conn.to.host) connections);
 
-  A list of (hosts, user) pairs for every host having a user, as given by ssh.access
-  */
-  hostUserPairs = lib.unique (lib.concatMap (conn: [ conn.from conn.to ]) connections);
-
-  /*
-  hosts :: ListOf Host
-
-  The list of hosts as given by ssh.access
-  */
-  hosts = map (pair: pair.host) hostUserPairs;
-
-  /*
-  hostUsers :: AttrsOf (ListOf User)
-
-  A mapping from host to the list of users it has, as given by ssh.access
-  */
-  hostUsers = lib.genAttrs hosts (host:
-    lib.unique (map (pair: pair.user) (lib.filter (pair: pair.host == host) hostUserPairs))
-  );
-
-
-  userConfig = host: lib.genAttrs hostUsers.${host} (user:
-    let
-      keys = map
-        (conn: config.ssh.access.${conn.from.host}.users.${conn.from.user}.publicKey)
-        (lib.filter (conn: conn.to.host == host && conn.to.user == user) connections);
-    in {
-      openssh.authorizedKeys.keys = lib.mkIf (keys != []) keys;
-    });
-
-  knownHostsConfig = host: lib.genAttrs (map (conn: conn.to.host) (lib.filter (conn: conn.from.host == host) connections)) (toHost: {
-    hostNames = [ toHost ] ++ config.ssh.access.${toHost}.hostNames ++ lib.optional (host == toHost) "localhost";
-    publicKey = config.ssh.access.${toHost}.hostKey or (throw "Host ssh.access.${toHost}.hostKey isn't specified, but we need it to give secure access from ${host}.");
-  });
+  knownHostsConfig = lib.mapAttrs (fromHost: fromHostConnections: {
+    configuration.programs.ssh.knownHosts = lib.mapAttrs (toHost: toHostConnections: {
+      hostNames = [ toHost ] ++ config.ssh.access.${toHost}.hostNames ++ lib.optional (fromHost == toHost) "localhost";
+      publicKey = config.ssh.access.${toHost}.hostKey or (throw "Host ssh.access.${toHost}.hostKey isn't specified, but we need it to give secure access from ${fromHost}.");
+    }) (lib.groupBy (conn: conn.to.host) fromHostConnections);
+  }) (lib.groupBy (conn: conn.from.host) connections);
 
 
 in {
@@ -67,24 +44,24 @@ in {
 
     access = lib.mkOption {
       description = ''
-        A specification for which host/user pair should have access to which
+        A specification for which host/key pair should have access to which
         other host/user pair. An entry here essentially makes `ssh user@host`
         work smoothly.
 
-        This works by adding the source users public key to the target users authorized
-        keys and by adding the target host key to the source host known hosts.
+        This works by adding the source key to the target users authorized
+        keys and by adding the target host key to the source hosts known hosts.
 
-        Note that hosts are specified with the Nixus node name.
+        Note that hosts are specified by Nixus node name.
       '';
       example = lib.literalExample ''
         {
           sourceHost = {
-            users.sourceUser = {
+            keys.sourceKey = {
               # Generate this with ssh-keygen
               publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDOJYDb9isFfFog88Lzvs1CEfAmcVB7F9NUFzC7XXXXX";
               hasAccessTo = {
                 # This allows you to `ssh targetUser@targetHost`
-                # from the sourceUser on sourceHost
+                # from a user having sourceKey on sourceHost
                 targetHost.targetUser = true;
               };
             };
@@ -97,7 +74,8 @@ in {
           };
         }
       '';
-      type = types.attrsOf (types.submodule ({ name, ... }: let hostName = name; in {
+      default = {};
+      type = types.attrsOf (types.submodule {
 
         # TODO: Could there be multiple?
         options.hostKey = lib.mkOption {
@@ -117,32 +95,36 @@ in {
             - VPN IP addresses
             - DNS domains
 
-            Note that the node name itself and localhost (if relevant) are
+            Note that the node name itself and localhost (if applicable) are
             implicitly in this list.
           '';
           type = types.listOf types.str;
           default = [];
         };
 
-        options.users = lib.mkOption {
+        options.keys = lib.mkOption {
           description = ''
-            Which users this host has and the access they should have to which
-            hosts.
+            Which keys this host has and the access they should have to which
+            hosts. The attribute name can be arbitrary and has no effect on the
+            result.
           '';
-          type = types.attrsOf (types.submodule ({ name, ... }: let userName = name; in {
-            # TODO: Could there be multiple?
+          default = {};
+          type = types.attrsOf (types.submodule {
             options.publicKey = lib.mkOption {
               description = ''
-                The users public key. This can be generated with `ssh-keygen`
-                or `ssh-keygen -t ed25519`. This needs to be specified if this
-                user wants to SSH into another host.
+                The public key. This can be generated with `ssh-keygen`
+                or `ssh-keygen -t ed25519`. This needs to be specified if the
+                keys owner wants to SSH into another host.
+
+                If you have multiple keys for the same user, specify another
+                attribute for the `keys` option.
               '';
               type = types.str;
             };
             options.hasAccessTo = lib.mkOption {
               description = ''
-                Which host/user this hosts user should have access to. A value
-                of `<host>.<user> = true` allows `ssh <user>@<host>`.
+                Which host/user this key should have access to. A value
+                of `<host>.<user> = true` allows `ssh <user>@<host>` to work.
               '';
               example = lib.literalExample ''
                 {
@@ -152,25 +134,17 @@ in {
               type = types.attrsOf (types.attrsOf types.bool);
               default = {};
             };
-          }));
-          default = {};
+          });
         };
 
-      }));
-      default = {};
+      });
     };
 
   };
 
-  config = {
-
-    nodes = lib.genAttrs hosts (host: {
-      configuration = {
-        users.users = userConfig host;
-        programs.ssh.knownHosts = knownHostsConfig host;
-      };
-    });
-
-  };
+  config = lib.mkMerge [
+    { nodes = userConfig; }
+    { nodes = knownHostsConfig; }
+  ];
 
 }
