@@ -52,6 +52,8 @@ in {
 
         networking.firewall.allowedUDPPorts = [ net.server.port ];
 
+        networking.firewall.trustedInterfaces = [ interface ];
+
         # Needed for both networking between clients and for client -> internet
         boot.kernel.sysctl."net.ipv4.conf.${interface}.forwarding" = true;
 
