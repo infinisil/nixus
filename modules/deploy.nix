@@ -54,7 +54,7 @@ let
       # TODO: What about different ssh ports? Some access abstraction perhaps?
       host = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
-        default = name;
+        default = null;
         example = "root@172.18.67.46";
         description = ''
           How to reach the host via ssh. Deploying is disabled if null. The
@@ -168,8 +168,8 @@ let
         exec > >(sed "s/^/[${name}] /")
         exec 2> >(sed "s/^/[${name}] /" >&2)
       '' + (if config.host == null then ''
-        echo "Don't know how to reach node, you need to set a non-null value for nodes.\"$HOSTNAME\".host" >&2
-        exit 1
+        echo "Can't deploy node as no value is set for nodes.\"$HOSTNAME\".host" >&2
+        exit 0
       '' else ''
         HOST=${config.host}
 
