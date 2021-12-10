@@ -43,7 +43,7 @@ let
 
     # We make this derivation dependent on the secret itself, such that a
     # change of it causes a rebuild
-    secretHash = builtins.hashFile "sha512" (builtins.readFile file);
+    secretHash = builtins.hashFile "sha512" file;
   } (
     let
       validSecret = (config.user == null) || (config.group == null);
