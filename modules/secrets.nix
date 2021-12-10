@@ -43,10 +43,7 @@ let
 
     # We make this derivation dependent on the secret itself, such that a
     # change of it causes a rebuild
-    secretHash = builtins.hashString "sha512" (builtins.readFile file);
-    # TODO: Switch to `builtins.hashFile "sha512" value`
-    # which requires Nix 2.3. The readFile way can cause an error when it
-    # contains null bytes
+    secretHash = builtins.hashFile "sha512" (builtins.readFile file);
   } (
     let
       validSecret = (config.user == null) || (config.group == null);
