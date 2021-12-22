@@ -49,6 +49,7 @@ let
         type =
           let
             evalConfig = import (config.nixpkgs + "/nixos/lib/eval-config.nix") {
+              system = nixus.pkgs.system;
               modules = [
                 extraConfig
                 {
