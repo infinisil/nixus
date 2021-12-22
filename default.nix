@@ -39,4 +39,10 @@ nixusArgs: conf: let
       }
     ];
   };
-in result.config.deployScript // result // nixusPkgs.lib.mapAttrs (n: v: v.deployScript) result.config.nodes
+in result.config.deployScript
+# Since https://github.com/NixOS/nixpkgs/pull/143207, the evalModules result contains a `type` attribute,
+# which if we don't remove it here would override the `type = "derivation"` from the above derivation
+# which is used by Nix to determine whether it should build the toplevel derivation or recurse
+# If we don't remove it, Nix would therefore recurse into this resulting attribute set
+// removeAttrs result [ "type" ]
+// nixusPkgs.lib.mapAttrs (n: v: v.deployScript) result.config.nodes

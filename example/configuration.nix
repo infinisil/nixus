@@ -25,6 +25,7 @@
   ];
 
   users.users.bob.group = "users";
+  users.users.bob.isNormalUser = true;
 
   secrets.files.foo.file = ./secret;
   secrets.files.foo.user = "bob";

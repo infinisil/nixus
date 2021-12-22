@@ -2,27 +2,19 @@
 let
   inherit (lib) types;
 
-  extraConfig = { lib, config, ... }: {
-    systemd.services = lib.mkIf (!config.services.openssh.startWhenNeeded) {
-      # By default the sshd service doesn't stop when changed so you don't lose connection to it when misconfigured
-      # But in Nixus we want to detect a misconfiguration since we can rollback in that case
-      sshd.stopIfChanged = lib.mkForce true;
-    };
-  };
-
-  pkgsModule = nixpkgs: { lib, config, ... }: {
-    config.nixpkgs.system = lib.mkDefault nixus.pkgs.system;
-    # Not using nixpkgs.pkgs because that would apply the overlays again
-    config._module.args.pkgs = lib.mkDefault (import nixpkgs {
-      inherit (config.nixpkgs) config overlays localSystem crossSystem;
-    });
-
+  extraConfig = { pkgs, lib, config, ... }: {
     # Export the pkgs arg because we use it outside the module
     # See https://github.com/NixOS/nixpkgs/pull/82751 why that's necessary
     options._pkgs = lib.mkOption {
       readOnly = true;
       internal = true;
-      default = config._module.args.pkgs;
+      default = pkgs;
+    };
+
+    config.systemd.services = lib.mkIf (!config.services.openssh.startWhenNeeded) {
+      # By default the sshd service doesn't stop when changed so you don't lose connection to it when misconfigured
+      # But in Nixus we want to detect a misconfiguration since we can rollback in that case
+      sshd.stopIfChanged = lib.mkForce true;
     };
   };
 
@@ -55,17 +47,24 @@ let
 
       configuration = lib.mkOption {
         type =
-          let baseModules = import (config.nixpkgs + "/nixos/modules/module-list.nix");
-          in types.submoduleWith {
-            specialArgs = {
+          let
+            evalConfig = import (config.nixpkgs + "/nixos/lib/eval-config.nix") {
+              modules = [
+                extraConfig
+                {
+                  _module.args = {
+                    nodes = lib.mapAttrs (name: value: value.configuration) topconfig.nodes;
+                    inherit name;
+                  };
+                }
+              ];
               lib = nixus.extendLib (import (config.nixpkgs + "/lib"));
-              # TODO: Move these to not special args
-              nodes = lib.mapAttrs (name: value: value.configuration) topconfig.nodes;
-              inherit name baseModules;
-              modulesPath = config.nixpkgs + "/nixos/modules";
             };
-            modules = baseModules ++ [ (pkgsModule config.nixpkgs) extraConfig ];
-          };
+            errorMsg = ''
+              This version of Nixus requires every node to use a nixpkgs version that includes https://github.com/NixOS/nixpkgs/pull/144094.
+              Node "${name}" uses a nixpkgs version that doesn't seem to include that PR, please update its nixpkgs version.
+            '';
+          in evalConfig.type or (throw errorMsg);
         default = {};
         example = lib.literalExample ''
           {
