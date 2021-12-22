@@ -18,6 +18,16 @@ let
     };
   };
 
+  # Legacy, relies on NixOS internals, makes nixus work with nixpkgs versions
+  # before https://github.com/NixOS/nixpkgs/pull/143207
+  pkgsModule = nixpkgs: { lib, config, ... }: {
+    config.nixpkgs.system = lib.mkDefault nixus.pkgs.system;
+    # Not using nixpkgs.pkgs because that would apply the overlays again
+    config._module.args.pkgs = lib.mkDefault (import nixpkgs {
+      inherit (config.nixpkgs) config overlays localSystem crossSystem;
+    });
+  };
+
   topconfig = config;
 
   nodeOptions = { name, config, ... }: {
@@ -48,6 +58,16 @@ let
       configuration = lib.mkOption {
         type =
           let
+            baseModules = import (config.nixpkgs + "/nixos/modules/module-list.nix");
+            legacy = types.submoduleWith {
+              specialArgs = {
+                lib = nixus.extendLib (import (config.nixpkgs + "/lib"));
+                nodes = lib.mapAttrs (name: value: value.configuration) topconfig.nodes;
+                inherit name baseModules;
+                modulesPath = config.nixpkgs + "/nixos/modules";
+              };
+              modules = baseModules ++ [ (pkgsModule config.nixpkgs) extraConfig ];
+            };
             evalConfig = import (config.nixpkgs + "/nixos/lib/eval-config.nix") {
               system = nixus.pkgs.system;
               modules = [
@@ -61,11 +81,7 @@ let
               ];
               lib = nixus.extendLib (import (config.nixpkgs + "/lib"));
             };
-            errorMsg = ''
-              This version of Nixus requires every node to use a nixpkgs version that includes https://github.com/NixOS/nixpkgs/pull/144094.
-              Node "${name}" uses a nixpkgs version that doesn't seem to include that PR, please update its nixpkgs version.
-            '';
-          in evalConfig.type or (throw errorMsg);
+          in evalConfig.type or legacy;
         default = {};
         example = lib.literalExample ''
           {
