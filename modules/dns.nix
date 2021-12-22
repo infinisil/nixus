@@ -176,11 +176,10 @@ let
       networking.firewall.allowedUDPPorts = [ 53 ];
       services.bind = {
         enable = true;
-        zones = map (zone: {
-          name = zone.name;
+        zones = lib.listToAttrs (lib.forEach zones (zone: lib.nameValuePair zone.name {
           master = true;
           file = zone.zonefile;
-        }) zones;
+        }));
       };
     };
 
