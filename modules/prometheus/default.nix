@@ -18,7 +18,11 @@ let
 
   nodeOpts = { name, config, ... }: {
     options = {
-      enable = lib.mkEnableOption "Enable prometheus monitoring for this node";
+      enable = lib.mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable prometheus monitoring for this node";
+      };
 
       name = lib.mkOption {
         type = types.str;
@@ -26,13 +30,13 @@ let
         description = "The name of the name, which is what will be used for prometheus as well";
       };
 
-      # isIPv6 = lib.mkOption {
-      #   type = types.bool;
-      #   default = false;
-      #   description = ''
-      #     Indicates if the IP is IPv6, if so it will be enclosed in 
-      #   '';
-      # };
+      isPrimary = lib.mkOption {
+        type = types.bool;
+        default = false;
+        description = ''
+          Indicates if this node is the primary node, which will run prometheus as well as Wireguard.
+        '';
+      };
 
       isLocal = lib.mkOption {
         type = types.bool;
@@ -52,31 +56,11 @@ let
         type = types.str;
         description = ''
           The IP address of the node, that the prometheus instance should try to contact to scrape.
-          Remember, if this is given as IPv6, it should be encloused in brackets like so, e.g. [fc00:1234::10].
+
+          For non-local nodes, this is also the IP that will be used for the Wireguard tunnel.
 
           This is also the IP address that the prometheus exporters will bind to.
         '';
-      };
-
-      ips = lib.mkOption {
-        type = types.str;
-        description = ''
-          TODO(eyJhb): fix this
-          fc00:1234::10/128
-        '';
-      };
-    } // secretsOpts;
-  };
-
-  primaryNodeOpts = { ... }: {
-    options = {
-      name = lib.mkOption {
-        type = types.str;
-      };
-
-      ip = lib.mkOption {
-        type = types.str;
-        description = "fc00:1234::1/128";
       };
     } // secretsOpts;
   };
@@ -85,10 +69,6 @@ let
     options = {
       enable = lib.mkEnableOption "Enable prometheus module";
 
-      primaryNode = lib.mkOption {
-        type = types.submodule primaryNodeOpts;
-      };
-
       wireguardPort = lib.mkOption {
         type = types.int;
         default = 12913;
@@ -96,13 +76,24 @@ let
 
       wireguardListenOn = lib.mkOption {
         type = types.str;
-        # default = config.nodes.${options.primaryNode}.networking.public.ipv6;
         description = "What to listen on in regards to Wireguard";
       };
 
+      wireguardInterfaceName = lib.mkOption {
+        type = types.str;
+        default = "wgprom";
+        description = "Name used for Wireguard interface";
+      };
+
       nodes = lib.mkOption {
-        default = {};
         type = types.attrsOf (types.submodule nodeOpts);
+        default = {};
+        apply = x: let
+            nodesFilteredPrimary = lib.attrValues (lib.filterAttrs (_: v: v.isPrimary) x);
+            primaryNode = builtins.elemAt nodesFilteredPrimary 0;
+          in if builtins.length nodesFilteredPrimary == 0
+                then throw "there needs to be at least one primary node"
+                else x // { "${primaryNode.name}" = primaryNode // { isLocal = true; }; };
       };
     };
   };

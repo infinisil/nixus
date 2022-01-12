@@ -1,8 +1,12 @@
-{ config, nodes, lib, ... }:
+{ config, nodes, lib, nixus, ... }:
 
 let
-  primaryNode = config.prometheus.primaryNode;
+  utils = nixus.pkgs.callPackage ./utils.nix {};
+
+  # configs
+  primaryNode = builtins.elemAt (lib.attrValues (lib.filterAttrs (_: v: v.isPrimary) config.prometheus.nodes)) 0;
   wireguardPort = config.prometheus.wireguardPort;
+  wireguardInterfaceName = config.prometheus.wireguardInterfaceName;
   endpoint = "${config.prometheus.wireguardListenOn}:${toString config.prometheus.wireguardPort}";
 
   # all the nodes that should connect using wireguard
@@ -35,14 +39,14 @@ let
       networking.wireguard = {
         enable = true;
 
-        interfaces.wgprom = {
-          ips = [ node.ips ];
+        interfaces.${wireguardInterfaceName} = {
+          ips = [ (utils.makeIPSubnet node.ip) ];
 
           privateKeyFile = "${toString config.secrets.files."wg-${node.name}-privatekey".file}";
 
           peers = [
             {
-              allowedIPs = [ primaryNode.ip ];
+              allowedIPs = [ (utils.makeIPSubnet primaryNode.ip) ];
               endpoint = endpoint;
               persistentKeepalive = 25;
               publicKey = lib.strings.fileContents primaryNode.wgPublicKey;
@@ -68,7 +72,7 @@ in {
       networking.wireguard = {
         enable = true;
 
-        interfaces.wgprom = {
+        interfaces.${wireguardInterfaceName}= {
           ips = [ primaryNode.ip ];
           privateKeyFile = "${toString config.secrets.files."wg-${primaryNode.name}-privatekey".file}";
           listenPort = wireguardPort;
@@ -76,7 +80,7 @@ in {
           # add all our peers from nodes
           peers = let
             peerConfigs = lib.forEach nodes (node: mkWireguardPeer {
-              allowedIPs = [ node.ips ];
+              allowedIPs = [ (utils.makeIPSubnet node.ip) ];
               publicKey = lib.strings.fileContents node.wgPublicKey;
               presharedKeyFile = "${toString config.secrets.files."wg-${node.name}-preshared".file}";
             });

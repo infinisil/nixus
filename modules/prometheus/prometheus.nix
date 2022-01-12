@@ -1,14 +1,17 @@
-{ config, nodes, lib, ... }:
+{ config, nodes, lib, nixus, ... }:
 
 let
+  utils = nixus.pkgs.callPackage ./utils.nix {};
+
   ## configs
-  primaryNode = "srtoffee";
+  primaryNode = builtins.elemAt (lib.attrValues (lib.filterAttrs (_: v: v.isPrimary) config.prometheus.nodes)) 0;
+
   defaultInterval = "30s";
-  wgSystemdServiceName = "wireguard-wgprom.service";
+  wgSystemdServiceName = "wireguard-${config.prometheus.wireguardInterfaceName}.service";
 
   # TODO(eyJhb): make this more pretty
-  nodes = lib.mapAttrsToList (_: v: v) config.prometheus.nodes;
-  nodesNoPrimary = builtins.filter (node: node.name != primaryNode) nodes;
+  nodes = lib.attrValues config.prometheus.nodes;
+  nodesNoPrimary = builtins.filter (node: node.name != primaryNode.name) nodes;
 
   ## functions
   mkNodeConfig = node: exporters: { config, ...}: {
@@ -34,7 +37,7 @@ let
         enable = true;
         # TODO(eyJhb): here we just assume everything is IPv6
         # unless this works for IPv4 as well?
-        listenAddress = "${node.ip}";
+        listenAddress = utils.wrapIP node.ip;
       } // exp.options;
     })
   );
@@ -47,7 +50,7 @@ let
     static_configs = let
       # do something with the nodes
       configs = lib.forEach nodes (node: {
-        targets = [ "${node.ip}:${toString port}@${node.name}" ];
+        targets = [ "${utils.wrapIP node.ip}:${toString port}@${node.name}" ];
         # labels.alias = x.name;
       });
     in configs;
@@ -89,7 +92,7 @@ let
 in {
   nodes = lib.recursiveUpdate {
     # primary node settings
-    "${primaryNode}".configuration = { config, ... }: {
+    "${primaryNode.name}".configuration = { config, ... }: {
 
       # prometheus
       services.prometheus = {
@@ -99,7 +102,7 @@ in {
         );
 
         exporters = let
-          filteredNodes = builtins.filter (node: node.name == primaryNode) nodes;
+          filteredNodes = builtins.filter (node: node.name == primaryNode.name) nodes;
           val = if (builtins.length filteredNodes) > 0
             then mkExporters (builtins.elemAt filteredNodes 0) exporters
             else {};
