@@ -90,25 +90,27 @@ let
   ];
 
 in {
-  nodes = lib.recursiveUpdate {
-    # primary node settings
-    "${primaryNode.name}".configuration = { config, ... }: {
+  config = lib.mkIf config.prometheus.enable {
+    nodes = lib.recursiveUpdate {
+      # primary node settings
+      "${primaryNode.name}".configuration = { config, ... }: {
 
-      # prometheus
-      services.prometheus = {
-        enable = true;
-        scrapeConfigs = lib.forEach exporters (exp:
-          mkScrapeConfig exp.name nodes exp.port defaultInterval
-        );
+        # prometheus
+        services.prometheus = {
+          enable = true;
+          scrapeConfigs = lib.forEach exporters (exp:
+            mkScrapeConfig exp.name nodes exp.port defaultInterval
+          );
 
-        exporters = let
-          filteredNodes = builtins.filter (node: node.name == primaryNode.name) nodes;
-          val = if (builtins.length filteredNodes) > 0
-            then mkExporters (builtins.elemAt filteredNodes 0) exporters
-            else {};
-        in val;
+          exporters = let
+            filteredNodes = builtins.filter (node: node.name == primaryNode.name) nodes;
+            val = if (builtins.length filteredNodes) > 0
+              then mkExporters (builtins.elemAt filteredNodes 0) exporters
+              else {};
+          in val;
+        };
       };
-    };
 
-  } (lib.listToAttrs (lib.forEach nodesNoPrimary (node: lib.nameValuePair node.name { configuration = (mkNodeConfig node exporters); } )));
+    } (lib.listToAttrs (lib.forEach nodesNoPrimary (node: lib.nameValuePair node.name { configuration = (mkNodeConfig node exporters); } )));
+  };
 }

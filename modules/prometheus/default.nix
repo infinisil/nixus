@@ -89,11 +89,13 @@ let
         type = types.attrsOf (types.submodule nodeOpts);
         default = {};
         apply = x: let
-            nodesFilteredPrimary = lib.attrValues (lib.filterAttrs (_: v: v.isPrimary) x);
+            # only use enabledNodes
+            enabledNodes = lib.filterAttrs (_: v: v.enable ) x;
+            nodesFilteredPrimary = lib.attrValues (lib.filterAttrs (_: v: v.isPrimary) enabledNodes);
             primaryNode = builtins.elemAt nodesFilteredPrimary 0;
           in if builtins.length nodesFilteredPrimary == 0
                 then throw "there needs to be at least one primary node"
-                else x // { "${primaryNode.name}" = primaryNode // { isLocal = true; }; };
+                else enabledNodes // { "${primaryNode.name}" = primaryNode // { isLocal = true; }; };
       };
     };
   };

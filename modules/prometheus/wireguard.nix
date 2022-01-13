@@ -1,4 +1,4 @@
-{ config, nodes, lib, nixus, ... }:
+{ config, lib, nixus, ... }:
 
 let
   utils = nixus.pkgs.callPackage ./utils.nix {};
@@ -57,37 +57,39 @@ let
       };
     };
 in {
-  nodes = {
-    # server config
-    "${primaryNode.name}".configuration = { config, ... }: {
-      # make secrets
-      secrets.files = mkSecrets (
-        (builtins.listToAttrs (
-          lib.forEach nodes (node: { name = "wg-${node.name}-preshared"; value = node.wgPresharedKey; })
-        )) // {
-          "wg-${primaryNode.name}-privatekey" = primaryNode.wgPrivateKey;
-        }
-      );
+  config = lib.mkIf config.prometheus.enable {
+    nodes = {
+      # server config
+      "${primaryNode.name}".configuration = { config, ... }: {
+        # make secrets
+        secrets.files = mkSecrets (
+            (builtins.listToAttrs (
+            lib.forEach nodes (node: { name = "wg-${node.name}-preshared"; value = node.wgPresharedKey; })
+            )) // {
+            "wg-${primaryNode.name}-privatekey" = primaryNode.wgPrivateKey;
+            }
+        );
 
-      networking.wireguard = {
-        enable = true;
+        networking.wireguard = {
+            enable = true;
 
-        interfaces.${wireguardInterfaceName}= {
-          ips = [ primaryNode.ip ];
-          privateKeyFile = "${toString config.secrets.files."wg-${primaryNode.name}-privatekey".file}";
-          listenPort = wireguardPort;
+            interfaces.${wireguardInterfaceName}= {
+            ips = [ primaryNode.ip ];
+            privateKeyFile = "${toString config.secrets.files."wg-${primaryNode.name}-privatekey".file}";
+            listenPort = wireguardPort;
 
-          # add all our peers from nodes
-          peers = let
-            peerConfigs = lib.forEach nodes (node: mkWireguardPeer {
-              allowedIPs = [ (utils.makeIPSubnet node.ip) ];
-              publicKey = lib.strings.fileContents node.wgPublicKey;
-              presharedKeyFile = "${toString config.secrets.files."wg-${node.name}-preshared".file}";
-            });
-          in peerConfigs;
+            # add all our peers from nodes
+            peers = let
+                peerConfigs = lib.forEach nodes (node: mkWireguardPeer {
+                allowedIPs = [ (utils.makeIPSubnet node.ip) ];
+                publicKey = lib.strings.fileContents node.wgPublicKey;
+                presharedKeyFile = "${toString config.secrets.files."wg-${node.name}-preshared".file}";
+                });
+            in peerConfigs;
+            };
         };
       };
-    };
-    # peer configs
-  } // (lib.listToAttrs (lib.forEach nodes (node: lib.nameValuePair node.name { configuration = (mkPeerConfig node); } )));
+      # peer configs
+    } // (lib.listToAttrs (lib.forEach nodes (node: lib.nameValuePair node.name { configuration = (mkPeerConfig node); } )));
+  };
 }
