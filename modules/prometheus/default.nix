@@ -16,6 +16,39 @@ let
     };
   };
 
+  exporterOpts = { name, ... }: {
+    options = {
+      name = lib.mkOption {
+        type = types.str;
+        default = name;
+        description = "Name of the exporter, which should match the option for the Prometheus exporter module";
+      };
+
+      scrapeInterval = lib.mkOption {
+        type = types.str;
+        default = "10s";
+        description = "How often to scrape this exporter";
+      };
+
+      options = lib.mkOption {
+        type = types.attrsOf types.anything;
+        default = {};
+        description = ''
+          Additional options to set for the exporter.
+          All settings specified here, are merged with the default settings for the exporter.
+        '';
+        example = {
+          port = 9100;
+          enabledCollectors = [
+            "systemd"
+            "logind"
+            "ethtool"
+          ];
+        };
+      };
+    };
+  };
+
   nodeOpts = { name, config, ... }: {
     options = {
       enable = lib.mkOption {
@@ -33,9 +66,7 @@ let
       isPrimary = lib.mkOption {
         type = types.bool;
         default = false;
-        description = ''
-          Indicates if this node is the primary node, which will run prometheus as well as Wireguard.
-        '';
+        description = "Indicates if this node is the primary node, which will run prometheus as well as Wireguard";
       };
 
       isLocal = lib.mkOption {
@@ -96,6 +127,11 @@ let
           in if builtins.length nodesFilteredPrimary == 0
                 then throw "there needs to be at least one primary node"
                 else enabledNodes // { "${primaryNode.name}" = primaryNode // { isLocal = true; }; };
+      };
+
+      exporters = lib.mkOption {
+        type = types.attrsOf (types.submodule exporterOpts);
+        default = {};
       };
     };
   };

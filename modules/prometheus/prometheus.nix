@@ -1,17 +1,14 @@
-{ config, nodes, lib, nixus, ... }:
+{ config, lib, nixus, ... }:
 
 let
   utils = nixus.pkgs.callPackage ./utils.nix {};
 
   ## configs
-  primaryNode = builtins.elemAt (lib.attrValues (lib.filterAttrs (_: v: v.isPrimary) config.prometheus.nodes)) 0;
-
-  defaultInterval = "30s";
+  promNodes = lib.attrValues config.prometheus.nodes;
+  primaryNode = lib.elemAt (lib.filter (v: v.isPrimary) promNodes) 0;
+  promNodesNoPrimary = lib.filter (node: node.name != primaryNode.name) promNodes;
+  exporters = config.prometheus.exporters;
   wgSystemdServiceName = "wireguard-${config.prometheus.wireguardInterfaceName}.service";
-
-  # TODO(eyJhb): make this more pretty
-  nodes = lib.attrValues config.prometheus.nodes;
-  nodesNoPrimary = builtins.filter (node: node.name != primaryNode.name) nodes;
 
   ## functions
   mkNodeConfig = node: exporters: { config, ...}: {
@@ -19,7 +16,7 @@ let
 
     # systemd, Requires= After=
     systemd.services = let
-      configs = builtins.listToAttrs (lib.forEach exporters (exp: {
+      configs = lib.listToAttrs (lib.forEach exporters (exp: {
         name = "prometheus-${exp.name}-exporter";
         value = {
           requires = [ wgSystemdServiceName ];
@@ -30,26 +27,31 @@ let
     in if node.isLocal then {} else configs;
   };
 
-  mkExporters = node: exporters: builtins.listToAttrs (
+  mkExporters = node: exporters: lib.listToAttrs (
     lib.forEach exporters (exp: {
       name = exp.name;
       value = {
         enable = true;
-        # TODO(eyJhb): here we just assume everything is IPv6
-        # unless this works for IPv4 as well?
         listenAddress = utils.wrapIP node.ip;
       } // exp.options;
     })
   );
 
   # create batches of nodes
-  mkScrapeConfig = jobName: nodes: port: interval: {
-    job_name = jobName;
-    scrape_interval = interval;
+  mkScrapeConfig = name: exp: {
+    job_name = name;
+    scrape_interval = exp.scrapeInterval;
 
     static_configs = let
+      # try to get the correct port to use.
+      # if a port is defined in options, then use that
+      # otherwise use the default port based on the primary node configuration
+      port = if exp.options ? port
+             then exp.options.port
+             else config.nodes.${primaryNode.name}.configuration.services.prometheus.exporters.${exp.name}.port;
+
       # do something with the nodes
-      configs = lib.forEach nodes (node: {
+      configs = lib.forEach promNodes (node: {
         targets = [ "${utils.wrapIP node.ip}:${toString port}@${node.name}" ];
         # labels.alias = x.name;
       });
@@ -68,49 +70,27 @@ let
       }
     ];
   };
-
-  # exporters to use
-  exporters = [
-    # node exporter
-    {
-      name = "node";
-      port = 9100;
-      interval = "10s";
-      options = {
-        enabledCollectors = [
-          # extra high (that we should enable)
-          "systemd"
-          "logind"
-          "ethtool"
-        ];
-      };
-    }
-
-    # others??
-  ];
-
 in {
   config = lib.mkIf config.prometheus.enable {
     nodes = lib.recursiveUpdate {
       # primary node settings
-      "${primaryNode.name}".configuration = { config, ... }: {
-
-        # prometheus
+      ${primaryNode.name}.configuration = { config, ... }: {
         services.prometheus = {
           enable = true;
-          scrapeConfigs = lib.forEach exporters (exp:
-            mkScrapeConfig exp.name nodes exp.port defaultInterval
-          );
+          scrapeConfigs = lib.attrValues (lib.mapAttrs (name: exp:
+            mkScrapeConfig name exp
+          ) exporters);
 
           exporters = let
-            filteredNodes = builtins.filter (node: node.name == primaryNode.name) nodes;
-            val = if (builtins.length filteredNodes) > 0
-              then mkExporters (builtins.elemAt filteredNodes 0) exporters
+            filteredNodes = lib.filter (node: node.name == primaryNode.name) promNodes;
+            val = if (lib.length filteredNodes) > 0
+              then mkExporters (lib.elemAt filteredNodes 0) (lib.attrValues exporters)
               else {};
           in val;
         };
       };
 
-    } (lib.listToAttrs (lib.forEach nodesNoPrimary (node: lib.nameValuePair node.name { configuration = (mkNodeConfig node exporters); } )));
+      # all other nodes configuration
+    } (lib.listToAttrs (lib.forEach promNodesNoPrimary (node: lib.nameValuePair node.name { configuration = (mkNodeConfig node (lib.attrValues exporters)); } )));
   };
 }

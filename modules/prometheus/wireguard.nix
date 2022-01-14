@@ -4,13 +4,13 @@ let
   utils = nixus.pkgs.callPackage ./utils.nix {};
 
   # configs
-  primaryNode = builtins.elemAt (lib.attrValues (lib.filterAttrs (_: v: v.isPrimary) config.prometheus.nodes)) 0;
+  primaryNode = lib.elemAt (lib.attrValues (lib.filterAttrs (_: v: v.isPrimary) config.prometheus.nodes)) 0;
   wireguardPort = config.prometheus.wireguardPort;
   wireguardInterfaceName = config.prometheus.wireguardInterfaceName;
   endpoint = "${config.prometheus.wireguardListenOn}:${toString config.prometheus.wireguardPort}";
 
   # all the nodes that should connect using wireguard
-  nodes = builtins.filter (node: node.isLocal == false) (lib.mapAttrsToList (_: v: v) config.prometheus.nodes);
+  wgNodes = lib.filter (node: node.isLocal == false && node.isPrimary == false) (lib.mapAttrsToList (_: v: v) config.prometheus.nodes);
   
   # helpers
   mkWireguardPeer = {
@@ -57,14 +57,14 @@ let
       };
     };
 in {
-  config = lib.mkIf config.prometheus.enable {
+  config = lib.mkIf (config.prometheus.enable && (lib.length wgNodes > 0)) {
     nodes = {
       # server config
       "${primaryNode.name}".configuration = { config, ... }: {
         # make secrets
         secrets.files = mkSecrets (
-            (builtins.listToAttrs (
-            lib.forEach nodes (node: { name = "wg-${node.name}-preshared"; value = node.wgPresharedKey; })
+            (lib.listToAttrs (
+            lib.forEach wgNodes (node: { name = "wg-${node.name}-preshared"; value = node.wgPresharedKey; })
             )) // {
             "wg-${primaryNode.name}-privatekey" = primaryNode.wgPrivateKey;
             }
@@ -80,7 +80,7 @@ in {
 
             # add all our peers from nodes
             peers = let
-                peerConfigs = lib.forEach nodes (node: mkWireguardPeer {
+                peerConfigs = lib.forEach wgNodes (node: mkWireguardPeer {
                 allowedIPs = [ (utils.makeIPSubnet node.ip) ];
                 publicKey = lib.strings.fileContents node.wgPublicKey;
                 presharedKeyFile = "${toString config.secrets.files."wg-${node.name}-preshared".file}";
@@ -90,6 +90,6 @@ in {
         };
       };
       # peer configs
-    } // (lib.listToAttrs (lib.forEach nodes (node: lib.nameValuePair node.name { configuration = (mkPeerConfig node); } )));
+    } // (lib.listToAttrs (lib.forEach wgNodes (node: lib.nameValuePair node.name { configuration = (mkPeerConfig node); } )));
   };
 }
