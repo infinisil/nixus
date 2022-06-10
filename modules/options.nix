@@ -34,14 +34,6 @@ let
 
     options = {
 
-      enabled = lib.mkOption {
-        type = lib.types.bool;
-        default = true;
-        description = ''
-          Whether this node should be included in the build.
-        '';
-      };
-
       nixpkgs = lib.mkOption {
         type = lib.types.path;
         example = lib.literalExample ''

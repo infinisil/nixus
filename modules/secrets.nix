@@ -178,15 +178,15 @@ in {
           fi
         '';
 
-        closurePaths = [ pkgs.rsync ];
+        closurePaths.rsync = pkgs.rsync;
 
-        deployScriptPhases.secrets =
+        preparationPhases.secrets =
           let
             # Safe because we include pkgs.rsync in the remotes closure,
             # therefore ensuring it will be there
             rsync = builtins.unsafeDiscardStringContext "${pkgs.rsync}/bin/rsync";
             privilegeEscalation = builtins.concatStringsSep " " config.privilegeEscalationCommand;
-          in lib.dag.entryBefore ["switch"] ''
+          in lib.dag.entryAfter ["copyClosure"] ''
             echo "Copying secrets..." >&2
 
             ssh "$HOST" ${privilegeEscalation} mkdir -p -m 755 ${baseDir}/pending/per-{user,group}
