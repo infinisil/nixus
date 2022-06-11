@@ -38,6 +38,7 @@ nixusArgs: conf: let
         _module.args.pkgs = throw "You're trying to access the pkgs argument from a Nixus module, use the nixus argument instead and use nixus.pkgs from that.";
       }
     ];
+    specialArgs = nixusArgs.specialArgs or {};
   };
 in result.config.deployScript
 # Since https://github.com/NixOS/nixpkgs/pull/143207, the evalModules result contains a `type` attribute,
