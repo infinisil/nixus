@@ -138,10 +138,10 @@ let
 
       # This value is more specific than a generic host, so it should override a host declared by the user with a default priority of 100
       # But it should also still allow the user to mkForce this value, which would be priority 50
-      host = lib.mkIf (nodeConfig.deployFrom ? ${globalConfig.deployHost})
+      host = lib.mkIf (globalConfig.deployHost != null && nodeConfig.deployFrom ? ${globalConfig.deployHost})
         (lib.mkOverride 75 nodeConfig.deployFrom.${globalConfig.deployHost}.host);
 
-      hasFastConnection = lib.mkIf (nodeConfig.deployFrom ? ${globalConfig.deployHost})
+      hasFastConnection = lib.mkIf (globalConfig.deployHost != null && nodeConfig.deployFrom ? ${globalConfig.deployHost})
         (lib.mkOverride 75 nodeConfig.deployFrom.${globalConfig.deployHost}.hasFastConnection);
 
       deployFrom.${nodeName} = {
@@ -184,7 +184,8 @@ in {
     };
 
     deployHost = lib.mkOption {
-      type = lib.types.str;
+      type = lib.types.nullOr lib.types.str;
+      default = null;
     };
 
     deployScript = lib.mkOption {
