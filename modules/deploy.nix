@@ -1,10 +1,10 @@
-{ nixus, lib, config, ... }:
+{ nixus, lib, config, extendModules, ... }:
 let
   inherit (lib) types;
 
   globalConfig = config;
 
-  nodeOptions = ({ name, pkgs, config, ... }: {
+  nodeOptions = { name, pkgs, config, ... }: let nodeName = name; in {
     options = {
       enable = lib.mkOption {
         type = types.bool;
@@ -120,6 +120,15 @@ let
         '';
       };
 
+      deployScript = lib.mkOption {
+        type = lib.types.package;
+        readOnly = true;
+        description = ''
+          The script to deploy this single node. There's also a script to
+          deploy all nodes, see the `deployScript` option.
+        '';
+      };
+
     };
 
     config = let
@@ -151,6 +160,14 @@ let
 
       closurePaths = { inherit system switch; };
 
+      deployScript = (extendModules {
+        modules = [{
+          defaults = { name, ... }: {
+            enable = name == nodeName;
+          };
+        }];
+      }).config.deployScript;
+
       # TOOD: Prevent garbage collection of closures until the end of the deploy
       preparationPhases.copyClosure = lib.dag.entryAnywhere ''
         if NIX_SSH_OPTS="-o ServerAliveInterval=15" nix-copy-closure \
@@ -174,7 +191,7 @@ let
 
     };
 
-  });
+  };
 
 in {
 
@@ -186,11 +203,23 @@ in {
     deployHost = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
+      description = ''
+        The hostname from which the deployment happens. The only effect this
+        has is that it uses the `nodes.<node>.deployFrom` option to determine
+        the deploy-host specific target host address. If `null`, no deploy-host
+        specific addresses are used, and the `nodes.<node>.host` option has to
+        be set.
+      '';
     };
 
     deployScript = lib.mkOption {
       type = lib.types.package;
       readOnly = true;
+      description = ''
+        The script to deploy all enabled nodes (see the `nodes.<node>.enable`
+        option). There's also scripts to deploy individual nodes under
+        `nodes.<node>.deployScript`.
+      '';
     };
   };
 
