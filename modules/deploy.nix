@@ -154,7 +154,7 @@ let
         (lib.mkOverride 75 nodeConfig.deployFrom.${globalConfig.deployHost}.hasFastConnection);
 
       deployFrom.${nodeName} = {
-        host = "localhost";
+        host = "root@localhost";
         hasFastConnection = true;
       };
 
