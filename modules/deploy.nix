@@ -302,7 +302,7 @@ in {
           echo "Deploying.." >&2
 
           if ! OLDSYSTEM=$(timeout --foreground 30 \
-              ssh -o ControlPath=none -o BatchMode=yes "$HOST" realpath /run/current-system\
+              ssh "$HOST" realpath /run/current-system\
             ); then
             echo "Unable to connect to host!" >&2
             exit 1
@@ -314,7 +314,7 @@ in {
           fi
 
           echo "Triggering system switcher..." >&2
-          id=$(ssh -o BatchMode=yes "$HOST" exec "${nodeConfig.closurePaths.switch}/bin/switch" start "${nodeConfig.closurePaths.system}")
+          id=$(ssh "$HOST" exec "${nodeConfig.closurePaths.switch}/bin/switch" start "${nodeConfig.closurePaths.system}")
 
           echo "Trying to confirm success..." >&2
           active=1
@@ -324,7 +324,7 @@ in {
             # a rebuild switch, even though with a reboot it wouldn't. Maybe use
             # the more modern and declarative networkd to get around this
             set +e
-            status=$(timeout --foreground 15 ssh -o ControlPath=none -o BatchMode=yes "$HOST" exec "${nodeConfig.closurePaths.switch}/bin/switch" active "$id")
+            status=$(timeout --foreground 15 ssh -o ControlPath=none "$HOST" exec "${nodeConfig.closurePaths.switch}/bin/switch" active "$id")
             active=$?
             set -e
             sleep 1
