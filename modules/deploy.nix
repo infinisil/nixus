@@ -120,6 +120,17 @@ let
         '';
       };
 
+      postDeployScript = lib.mkOption {
+        type = lib.types.string;
+        description = ''
+          Script to run after the deployment of this node, whether it was
+          successful or not. The exit status of the deployment is available in
+          the `$status` bash variable, which should be either "success" or
+          "failure" (though it can sometimes be "unknown", that's currently a
+          bug..)
+        '';
+      };
+
       deployScript = lib.mkOption {
         type = lib.types.package;
         readOnly = true;
@@ -188,6 +199,30 @@ let
           # Phase ${name}
           ${data}
         '') sortedScripts);
+
+      postDeployScript = lib.mkMerge [
+        (lib.mkBefore ''
+          case "$status" in
+            "success")
+              echo "Successfully activated new system!" >&2
+              ;;
+            "failure")
+              echo -e "\e[31mFailed to activate new system! Rolled back to previous one\e[0m" >&2
+              echo -e "\e[31mRun the following command to see the logs for the switch:\e[0m" >&2
+              echo -e "\e[31mssh ''${HOST@Q} ${builtins.concatStringsSep " " config.privilegeEscalationCommand} cat /var/lib/system-switcher/system-$id/log\e[0m" >&2
+              # TODO: Try to better show what failed
+              ;;
+            *)
+              echo -e "\e[31mThis shouldn't occur, the status is $status!\e[0m" >&2
+              ;;
+          esac
+        '')
+        (lib.mkAfter ''
+          if [[ "$status" != "success" ]]; then
+            exit 1
+          fi
+        '')
+      ];
 
     };
 
@@ -330,22 +365,7 @@ in {
             sleep 1
           done
 
-          case "$status" in
-            "success")
-              echo "Successfully activated new system!" >&2
-              ;;
-            "failure")
-              echo -e "\e[31mFailed to activate new system! Rolled back to previous one\e[0m" >&2
-              echo -e "\e[31mRun the following command to see the logs for the switch:\e[0m" >&2
-              echo -e "\e[31mssh ''${HOST@Q} ${builtins.concatStringsSep " " nodeConfig.privilegeEscalationCommand} cat /var/lib/system-switcher/system-$id/log\e[0m" >&2
-              exit 1
-              # TODO: Try to better show what failed
-              ;;
-            *)
-              echo -e "\e[31mThis shouldn't occur, the status is $status!\e[0m" >&2
-              exit 1
-              ;;
-          esac
+          ${nodeConfig.postDeployScript}
 
         } &
       '') nodesToDeploy)}
