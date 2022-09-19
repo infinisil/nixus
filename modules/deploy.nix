@@ -336,18 +336,6 @@ in {
 
           echo "Deploying.." >&2
 
-          if ! OLDSYSTEM=$(timeout --foreground 30 \
-              ssh "$HOST" realpath /run/current-system\
-            ); then
-            echo "Unable to connect to host!" >&2
-            exit 1
-          fi
-
-          if [ "$OLDSYSTEM" == "${nodeConfig.closurePaths.system}" ]; then
-            echo "No deploy necessary" >&2
-            exit 0
-          fi
-
           echo "Triggering system switcher..." >&2
           id=$(ssh "$HOST" exec "${nodeConfig.closurePaths.switch}/bin/switch" start "${nodeConfig.closurePaths.system}")
 
