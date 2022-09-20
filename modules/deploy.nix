@@ -121,7 +121,7 @@ let
       };
 
       postDeployScript = lib.mkOption {
-        type = lib.types.string;
+        type = lib.types.lines;
         description = ''
           Script to run after the deployment of this node, whether it was
           successful or not. The exit status of the deployment is available in
