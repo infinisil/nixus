@@ -95,17 +95,22 @@ in {
 
   // lib.flip lib.mapAttrs net.clients (clientNode: clientValue: {
 
-    configuration.networking.wg-quick.interfaces.${interface} = {
-      address = [ "${clientValue.subnetIp}/${toString parsedSubnet.cidr}" ];
-      privateKeyFile = clientValue.wireguard.privateKeyFile;
+    configuration = {
 
-      peers = lib.singleton {
-        publicKey = net.server.wireguard.publicKey;
-        allowedIPs = if clientValue.internetGateway
-          then [ "0.0.0.0/0" ]
-          else [ parsedSubnet.subnet ];
-        endpoint = "${config.nodes.${net.server.node}.configuration.networking.public.ipv4}:${toString net.server.port}";
-        persistentKeepalive = 25;
+      networking.firewall.trustedInterfaces = [ interface ];
+
+      networking.wg-quick.interfaces.${interface} = {
+        address = [ "${clientValue.subnetIp}/${toString parsedSubnet.cidr}" ];
+        privateKeyFile = clientValue.wireguard.privateKeyFile;
+
+        peers = lib.singleton {
+          publicKey = net.server.wireguard.publicKey;
+          allowedIPs = if clientValue.internetGateway
+            then [ "0.0.0.0/0" ]
+            else [ parsedSubnet.subnet ];
+          endpoint = "${config.nodes.${net.server.node}.configuration.networking.public.ipv4}:${toString net.server.port}";
+          persistentKeepalive = 25;
+        };
       };
     };
 
