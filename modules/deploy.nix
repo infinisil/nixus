@@ -145,7 +145,7 @@ let
     config = let
       nodeName = name;
       nodeConfig = config;
-      switch = pkgs.runCommandNoCC "switch" {
+      switch = pkgs.runCommand "switch" {
         inherit (nodeConfig) switchTimeout successTimeout ignoreFailingSystemdUnits privilegeEscalationCommand;
         shell = pkgs.runtimeShell;
       } ''

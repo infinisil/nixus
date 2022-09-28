@@ -36,7 +36,7 @@ let
   };
 
   # Takes a file path and turns it into a derivation
-  indirectSecret = pkgs: baseDir: config: name: file: pkgs.runCommandNoCC "secret-${name}" {
+  indirectSecret = pkgs: baseDir: config: name: file: pkgs.runCommand "secret-${name}" {
     # To find out which file to copy. toString to not import the secret into
     # the store
     file = toString file;
