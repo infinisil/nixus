@@ -1,5 +1,5 @@
 nixusArgs: conf: let
-  nixpkgs = import ./nixpkgs.nix;
+  nixpkgs = nixusArgs.nixpkgs or (import ./nix/sources.nix).nixpkgs;
 
   extendLib = lib:
     let
