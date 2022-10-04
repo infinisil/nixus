@@ -1,5 +1,5 @@
 nixusArgs: conf: let
-  nixpkgs = import ./nixpkgs.nix;
+  sources = import ./nix/sources.nix;
 
   extendLib = lib:
     let
@@ -9,7 +9,7 @@ nixusArgs: conf: let
       libOverlay = lib.foldl' lib.composeExtensions (self: super: {}) libOverlays;
     in lib.extend libOverlay;
 
-  nixusPkgs = import nixpkgs {
+  nixusPkgs = import sources.nixpkgs {
     config = {};
     overlays = [
       (self: super: {
