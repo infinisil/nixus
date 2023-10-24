@@ -1,4 +1,6 @@
 {
+  description = "Experimental deployment tool supporting multi-host abstractions";
+
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   inputs.flake-utils.url = "github:numtide/flake-utils";
 
