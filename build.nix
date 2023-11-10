@@ -10,6 +10,7 @@ let
     let
       libOverlays = [
         (import ./dag.nix)
+        (import ./ip.nix)
       ] ++ lib.optional (libOverlay != null) libOverlay;
       combinedLibOverlay = lib.foldl' lib.composeExtensions (self: super: {}) libOverlays;
     in lib.extend combinedLibOverlay;
