@@ -1,6 +1,9 @@
-{ lib, pkgs, config, ... }: {
+{ lib, pkgs, config, unstable, ... }: {
 
-  imports = [ ./hardware-configuration.nix ];
+  imports = [
+    ./hardware-configuration.nix
+    (unstable + "/nixos/modules/services/video/photonvision.nix")
+  ];
 
   boot.loader.timeout = 10;
   boot.loader.grub.device = "/dev/vda";
