@@ -62,6 +62,7 @@ let
             };
             evalConfig = import (config.nixpkgs + "/nixos/lib/eval-config.nix") {
               system = nixus.pkgs.system;
+              specialArgs.lib = nixus.extendLib (import (config.nixpkgs + "/lib"));
               modules = [
                 extraConfig
                 {
@@ -71,7 +72,6 @@ let
                   };
                 }
               ];
-              lib = nixus.extendLib (import (config.nixpkgs + "/lib"));
             };
           in evalConfig.type or legacy;
         default = {};
