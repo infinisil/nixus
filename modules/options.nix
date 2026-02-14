@@ -21,7 +21,7 @@ let
   # Legacy, relies on NixOS internals, makes nixus work with nixpkgs versions
   # before https://github.com/NixOS/nixpkgs/pull/143207
   pkgsModule = nixpkgs: { lib, config, ... }: {
-    config.nixpkgs.system = lib.mkDefault nixus.pkgs.system;
+    config.nixpkgs.system = lib.mkDefault nixus.pkgs.stdenv.hostPlatform.system;
     # Not using nixpkgs.pkgs because that would apply the overlays again
     config._module.args.pkgs = lib.mkDefault (import nixpkgs {
       inherit (config.nixpkgs) config overlays localSystem crossSystem;
@@ -61,7 +61,7 @@ let
               modules = baseModules ++ [ (pkgsModule config.nixpkgs) extraConfig ];
             };
             evalConfig = import (config.nixpkgs + "/nixos/lib/eval-config.nix") {
-              system = nixus.pkgs.system;
+              system = nixus.pkgs.stdenv.hostPlatform.system;
               specialArgs.lib = nixus.extendLib (import (config.nixpkgs + "/lib"));
               modules = [
                 extraConfig
